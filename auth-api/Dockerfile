@@ -13,11 +13,12 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 COPY composer.json .
-RUN composer install --prefer-dist
+RUN composer install --prefer-dist --no-interaction --optimize-autoloader --verbose || { echo "Composer install failed"; exit 1; }
 
 COPY src/ .
-
 RUN chown -R www-data:www-data /app
+
+COPY php-fpm.conf /usr/local/etc/php-fpm.conf
 
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh

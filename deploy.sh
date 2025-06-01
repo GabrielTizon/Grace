@@ -20,7 +20,7 @@ fi
 
 # Health checks
 echo "Running health checks..." | tee -a deploy.log
-services=("auth-api" "record-api" "receive-send-api" "db" "redis")
+services=("auth-api" "record-api" "receive-send-api" "db" "redis" "nginx-auth")
 for service in "${services[@]}"; do
     echo "Checking health of $service..." | tee -a deploy.log
     for i in {1..30}; do
@@ -37,4 +37,20 @@ for service in "${services[@]}"; do
     done
 done
 
-echo "Deployment successful!" | tee -a deploy.log
+# Run automated tests
+echo "Running automated tests..." | tee -a deploy.log
+cd tests
+for test in test_auth.sh test_receive_send.sh test_record.sh; do
+    echo "Running $test..." | tee -a ../deploy.log
+    ./"$test" >> ../deploy.log 2>&1
+    if [ $? -ne 0 ]; then
+        echo "Test $test failed. Check deploy.log." | tee -a ../deploy.log
+        exit 1
+    fi
+    echo "$test passed." | tee -a ../deploy.log
+done
+
+echo "Deployment and tests successful!" | tee -a ../deploy.log
+
+# Return to the original directory
+cd ..

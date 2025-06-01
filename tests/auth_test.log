@@ -1,0 +1,9 @@
+
+2025-06-01 15:06:47 - Starting Auth-API test...
+2025-06-01 15:06:47 - Attempting to register user 'test' at http://localhost:9000/register
+2025-06-01 15:06:47 - Received HTTP status code: 200
+2025-06-01 15:06:47 - Response body: {"token":"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VybmFtZSI6InRlc3QiLCJleHAiOjE3NDg4MDQ4MDd9.dM7gpchp65HQnGFgrWnmZC3ga_K2OmmpQCQoZI-7J3A"}
+2025-06-01 15:06:47 - Token successfully extracted using jq.
+2025-06-01 15:06:47 - Auth-API register successful.
+2025-06-01 15:06:47 - Token saved to jwt.txt
+2025-06-01 15:06:47 - Test completed successfully.

@@ -1,0 +1,9 @@
+
+2025-06-01 15:06:47 - Starting Receive-Send-API test...
+2025-06-01 15:06:47 - JWT successfully read from jwt.txt.
+2025-06-01 15:06:47 - Attempting to send message to http://localhost:3000/send
+2025-06-01 15:06:47 - Payload: {"message":"test message from automated script"}
+2025-06-01 15:06:48 - Received HTTP status code: 200
+2025-06-01 15:06:48 - Response body: {"status":"Message sent"}
+2025-06-01 15:06:48 - Receive-Send-API successful: Found 'Message sent' in response.
+2025-06-01 15:06:48 - Test completed successfully.

@@ -17,6 +17,8 @@ services:
       - DB_USER=user
       - DB_PASS=password
       - REDIS_HOST=redis
+    expose:
+      - "9001"
 
   nginx:
     image: nginx:latest
@@ -27,12 +29,11 @@ services:
       - auth-api
     volumes:
       - ./auth-api/nginx.conf:/etc/nginx/nginx.conf
-      - ./auth-api/src:/app
+      - ./auth-api/src/public:/app/public
     ports:
-      - "9000:80"  # acesso HTTP do host na porta 9000, proxy para PHP-FPM via auth-api:9000
-
+      - "9000:80"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost"]
+      test: ["CMD", "curl", "-f", "http://localhost/register"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -92,7 +93,7 @@ services:
       - db-data:/var/lib/postgresql/data
       - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user"]
+      test: ["CMD-SHELL", "pg_isready -U user -d mydb"]
       interval: 10s
       timeout: 5s
       retries: 5

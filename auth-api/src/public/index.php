@@ -1,5 +1,5 @@
 <?php
-require '../vendor/autoload.php';
+require '/app/vendor/autoload.php';
 
 use Firebase\JWT\JWT;
 
@@ -11,7 +11,7 @@ try {
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 } catch (PDOException $e) {
     http_response_code(500);
-    echo json_encode(['error' => 'Database connection failed']);
+    echo json_encode(['error' => 'Database connection failed: ' . $e->getMessage()]);
     exit;
 }
 
@@ -38,10 +38,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['REQUEST_URI']) && s
             echo json_encode(['error' => 'Registration failed']);
         }
     } catch (PDOException $e) {
-        http_response_code(400);
-        echo json_encode(['error' => 'Username already exists']);
+        if (strpos($e->getMessage(), 'duplicate key') !== false) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Username already exists']);
+        } else {
+            http_response_code(500);
+            echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);
+        }
     }
 } else {
-    http_response_code(400);
-    echo json_encode(['error' => 'Invalid request']);
+    http_response_code(404);
+    echo json_encode(['error' => 'File not found', 'uri' => $_SERVER['REQUEST_URI'] ?? 'unknown']);
 }

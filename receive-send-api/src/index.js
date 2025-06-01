@@ -18,16 +18,18 @@ app.post('/send', (req, res) => {
 
     const token = authHeader.split(' ')[1];
     try {
-        jwt.verify(token, 'your_secret_key');
+        const decoded = jwt.verify(token, 'your_secret_key', { algorithms: ['HS256'] });
+        console.log('JWT decoded:', decoded);
         const message = req.body.message;
         if (message) {
-            redisClient.lpush('messages', message);
+            redisClient.lPush('messages', message);
             res.json({ status: 'Message sent' });
         } else {
             res.status(400).json({ error: 'Message required' });
         }
     } catch (err) {
-        res.status(401).json({ error: 'Invalid JWT' });
+        console.error('JWT validation error:', err.message);
+        res.status(401).json({ error: 'Invalid JWT', details: err.message });
     }
 });
 
