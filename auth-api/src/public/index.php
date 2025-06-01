@@ -17,7 +17,12 @@ try {
 
 $input = json_decode(file_get_contents('php://input'), true);
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['REQUEST_URI']) && strpos($_SERVER['REQUEST_URI'], '/register') !== false) {
+$uri = $_SERVER['REQUEST_URI'] ?? '/';
+$method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+$jwtSecret = 'your_secret_key';
+
+// REGISTER
+if ($method === 'POST' && strpos($uri, '/register') !== false) {
     if (!isset($input['username'], $input['password'])) {
         http_response_code(400);
         echo json_encode(['error' => 'Username and password required']);
@@ -31,7 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['REQUEST_URI']) && s
         $stmt = $pdo->prepare("INSERT INTO users (username, password) VALUES (?, ?)");
         if ($stmt->execute([$username, $password])) {
             $payload = ['username' => $username, 'exp' => time() + 3600];
-            $jwt = JWT::encode($payload, 'your_secret_key', 'HS256');
+            $jwt = JWT::encode($payload, $jwtSecret, 'HS256');
             echo json_encode(['token' => $jwt]);
         } else {
             http_response_code(400);
@@ -46,7 +51,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['REQUEST_URI']) && s
             echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);
         }
     }
-} else {
-    http_response_code(404);
-    echo json_encode(['error' => 'File not found', 'uri' => $_SERVER['REQUEST_URI'] ?? 'unknown']);
+    exit;
 }
+
+// LOGIN
+if ($method === 'POST' && strpos($uri, '/login') !== false) {
+    if (!isset($input['username'], $input['password'])) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Username and password required']);
+        exit;
+    }
+
+    $username = $input['username'];
+    $password = $input['password'];
+
+    try {
+        $stmt = $pdo->prepare("SELECT * FROM users WHERE username = ?");
+        $stmt->execute([$username]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($user && password_verify($password, $user['password'])) {
+            $payload = ['username' => $username, 'exp' => time() + 3600];
+            $jwt = JWT::encode($payload, $jwtSecret, 'HS256');
+            echo json_encode(['token' => $jwt]);
+        } else {
+            http_response_code(401);
+            echo json_encode(['error' => 'Invalid credentials']);
+        }
+    } catch (PDOException $e) {
+        http_response_code(500);
+        echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);
+    }
+    exit;
+}
+
+// DEFAULT: 404
+http_response_code(404);
+echo json_encode(['error' => 'File not found', 'uri' => $uri]);
