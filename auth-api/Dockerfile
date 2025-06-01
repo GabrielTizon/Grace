@@ -1,18 +1,27 @@
-FROM php:8.2-apache
+FROM php:8.3-fpm
 
-# Instala dependências
-RUN docker-php-ext-install pdo pdo_pgsql
+RUN apt-get update && apt-get install -y \
+    libpq-dev \
+    git \
+    libzip-dev \
+    postgresql-client \
+    && docker-php-ext-install pdo pdo_pgsql zip \
+    && pecl install redis \
+    && docker-php-ext-enable redis \
+    && curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
-# Instala Composer
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+WORKDIR /app
 
-# Instala dependências do projeto
-COPY . /var/www/html
-WORKDIR /var/www/html
-RUN composer install
+COPY composer.json .
+RUN composer install --prefer-dist
 
-# Habilita rewrite para Slim
-RUN a2enmod rewrite
-COPY ./apache-config.conf /etc/apache2/sites-available/000-default.conf
+COPY src/ .
 
-EXPOSE 80
+RUN chown -R www-data:www-data /app
+
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+EXPOSE 9001
+
+ENTRYPOINT ["/entrypoint.sh"]
