@@ -18,4 +18,14 @@ class UserModel {
         $stmt->execute([$username]);
         return $stmt->fetch();
     }
+
+    public function updatePassword($username, $password) {
+        $stmt = $this->pdo->prepare("UPDATE users SET password = ? WHERE username = ?");
+        return $stmt->execute([$password, $username]);
+    }
+
+    public function delete($username) {
+        $stmt = $this->pdo->prepare("DELETE FROM users WHERE username = ?");
+        return $stmt->execute([$username]);
+    }
 }
