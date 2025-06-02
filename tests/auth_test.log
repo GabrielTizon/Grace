@@ -1,10 +1,24 @@
-2025-06-02 17:22:11 - Starting Auth-API test...
-2025-06-02 17:22:11 - jq found.
-2025-06-02 17:22:11 - Cleaning up existing user 'test' if present...
-2025-06-02 17:22:11 - Attempting to register user 'test' at http://localhost:9000/register
-2025-06-02 17:22:11 - Received HTTP status code: 200
-2025-06-02 17:22:11 - Response body: {"token":"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VybmFtZSI6InRlc3QiLCJleHAiOjE3NDg4OTkzMzF9.fH_1yq-03jL4CMrq63TxXunCO-6Wanosl29Oxc2bEH8"}
-2025-06-02 17:22:11 - Token successfully extracted using jq.
-2025-06-02 17:22:11 - Auth-API register successful.
-2025-06-02 17:22:11 - Token saved to jwt.txt
-2025-06-02 17:22:11 - Test completed successfully.
+2025-06-02 17:59:20 - Starting Auth-API test...
+2025-06-02 17:59:20 - jq found. Using for JSON validation and extraction.
+2025-06-02 17:59:20 - Cleaning up existing user 'test' if present via http://localhost:9000/users/test ...
+2025-06-02 17:59:20 - Cleanup attempt for user 'test' returned HTTP status: 404. Response: {"error":"Endpoint not found","uri_debug":"\/users\/test","method_debug":"DELETE"}
+2025-06-02 17:59:20 - Attempting to register user 'test' at http://localhost:9000/user
+2025-06-02 17:59:20 - Payload: {
+    "username": "test",
+    "password": "testpassword",
+    "name": "Test",
+    "lastName": "User",
+    "email": "test@example.com"
+}
+2025-06-02 17:59:20 - Received HTTP status code: 200
+2025-06-02 17:59:20 - Response body: <br />
+<b>Warning</b>:  Undefined array key "lastName" in <b>/app/public/index.php</b> on line <b>138</b><br />
+<br />
+<b>Warning</b>:  http_response_code(): Cannot set response code - headers already sent (output started at /app/public/index.php:138) in <b>/app/public/index.php</b> on line <b>32</b><br />
+{"message":"ok","user":{"id":2,"username":"test","name":"Test","lastName":null,"email":"test@example.com"}}
+2025-06-02 17:59:20 - ERROR: API request to register user failed with HTTP status code 200.
+2025-06-02 17:59:20 - ERROR: Full response body: <br />
+<b>Warning</b>:  Undefined array key "lastName" in <b>/app/public/index.php</b> on line <b>138</b><br />
+<br />
+<b>Warning</b>:  http_response_code(): Cannot set response code - headers already sent (output started at /app/public/index.php:138) in <b>/app/public/index.php</b> on line <b>32</b><br />
+{"message":"ok","user":{"id":2,"username":"test","name":"Test","lastName":null,"email":"test@example.com"}}
