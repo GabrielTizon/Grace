@@ -1,0 +1,11 @@
+
+2025-06-02 14:55:59 - Starting integration tests for auth-api, record-api, and receive-send-api...
+2025-06-02 14:55:59 - Using CONNECT_TIMEOUT=10s and MAX_TIME=30s for curl calls.
+2025-06-02 14:55:59 - jq found. Using for JSON validation.
+2025-06-02 14:55:59 - Waiting for services to be ready...
+2025-06-02 14:55:59 - Checking http://localhost:9000/register...
+2025-06-02 14:55:59 - http://localhost:9000/register not ready, retrying in 5 seconds... (Attempt 1/5)
+2025-06-02 14:56:04 - http://localhost:9000/register not ready, retrying in 5 seconds... (Attempt 2/5)
+2025-06-02 14:56:09 - http://localhost:9000/register not ready, retrying in 5 seconds... (Attempt 3/5)
+2025-06-02 14:56:14 - http://localhost:9000/register not ready, retrying in 5 seconds... (Attempt 4/5)
+2025-06-02 14:56:19 - ERROR: Service http://localhost:9000/register not ready after 5 attempts. Exiting.

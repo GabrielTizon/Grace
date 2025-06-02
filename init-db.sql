@@ -5,3 +5,10 @@ CREATE TABLE users (
 );
 
 INSERT INTO users (username, password) VALUES ('admin', '$2y$10$...');
+
+CREATE TABLE IF NOT EXISTS messages (
+    id SERIAL PRIMARY KEY,
+    "user" TEXT NOT NULL,
+    message TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

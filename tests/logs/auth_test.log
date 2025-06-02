@@ -1,0 +1,14 @@
+2025-06-02 11:47:35 - Starting Auth-API registration test...
+2025-06-02 11:47:35 - Script directory: /home/clodoaldo-f/Dev/Grace/tests
+2025-06-02 11:47:35 - Log directory: /home/clodoaldo-f/Dev/Grace/tests/logs
+2025-06-02 11:47:35 - Log file: /home/clodoaldo-f/Dev/Grace/tests/logs/auth_test.log
+2025-06-02 11:47:35 - JWT file: /home/clodoaldo-f/Dev/Grace/tests/logs/jwt.txt
+2025-06-02 11:47:35 - Username file: /home/clodoaldo-f/Dev/Grace/tests/logs/username.txt
+2025-06-02 11:47:35 - jq found. Using for JSON validation.
+2025-06-02 11:47:35 - Registering user 'testuser_1748875655' at http://localhost:80/register...
+2025-06-02 11:47:35 - Testing POST http://localhost:80/register...
+2025-06-02 11:47:35 - ERROR: curl command failed
+2025-06-02 11:47:35 - Received HTTP status code: 000
+2025-06-02 11:47:35 - Response body: 
+2025-06-02 11:47:35 - ERROR: POST http://localhost:80/register failed with HTTP status 000, expected 200
+2025-06-02 11:47:35 - ERROR: Response body: 

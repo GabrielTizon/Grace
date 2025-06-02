@@ -10,10 +10,10 @@ $dbname = getenv('DB_NAME') ?: 'mydb';
 $user = getenv('DB_USER') ?: 'user';
 $password = getenv('DB_PASS') ?: 'password';
 
-$dsn = "pgsql:host=$host;port=5432;dbname=$dbname;user=$user;password=$password";
+$dsn = "pgsql:host=$host;port=5432;dbname=$dbname";
 
 try {
-    $pdo = new PDO($dsn);
+    $pdo = new PDO($dsn, $user, $password);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 } catch (PDOException $e) {
     http_response_code(500);

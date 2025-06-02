@@ -1,9 +1,9 @@
 
-2025-06-01 19:17:44 - Starting Record-API test...
-2025-06-01 19:17:44 - jq command not found. Will use basic grep for response validation. For more robust JSON checking, please install jq.
-2025-06-01 19:17:44 - Attempting to retrieve messages from http://localhost:5000/messages
-2025-06-01 19:17:44 - Received HTTP status code: 200
-2025-06-01 19:17:44 - Response body: {"messages":["test message from automated script"]}
-2025-06-01 19:17:44 - Found 'messages' string in response using grep (jq not available).
-2025-06-01 19:17:44 - Record-API retrieval successful: 'messages' field/string found in response.
-2025-06-01 19:17:44 - Test completed successfully.
+2025-06-02 14:51:29 - Starting Record-API test...
+2025-06-02 14:51:29 - jq command found. Will use it for response validation.
+2025-06-02 14:51:29 - Attempting to retrieve messages from http://localhost:5000/messages
+2025-06-02 14:51:29 - Received HTTP status code: 200
+2025-06-02 14:51:29 - Response body: {"messages":[]}
+2025-06-02 14:51:29 - Successfully found and validated '.messages' field (array or object) in JSON response using jq.
+2025-06-02 14:51:29 - Record-API retrieval successful: 'messages' field/string found in response.
+2025-06-02 14:51:29 - Test completed successfully.

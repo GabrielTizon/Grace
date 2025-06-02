@@ -1,9 +1,10 @@
 
-2025-06-01 19:17:11 - Starting Receive-Send-API test...
-2025-06-01 19:17:11 - JWT successfully read from jwt.txt.
-2025-06-01 19:17:11 - Attempting to send message to http://localhost:3000/send
-2025-06-01 19:17:11 - Payload: {"message":"test message from automated script"}
-2025-06-01 19:17:11 - Received HTTP status code: 200
-2025-06-01 19:17:11 - Response body: {"status":"Message sent"}
-2025-06-01 19:17:11 - Receive-Send-API successful: Found 'Message sent' in response.
-2025-06-01 19:17:11 - Test completed successfully.
+2025-06-02 13:58:44 - Starting Receive-Send-API test...
+2025-06-02 13:58:44 - JWT_SECRET obtido do container.
+2025-06-02 13:58:44 - Gerando JWT dentro do container receive-send-api...
+2025-06-02 13:58:44 - JWT gerado com sucesso.
+2025-06-02 13:58:44 - Enviando mensagem para http://localhost:3000/send
+2025-06-02 13:58:44 - Payload: {"message":"test message from automated script"}
+2025-06-02 13:58:44 - Código HTTP recebido: 200
+2025-06-02 13:58:44 - Resposta: {"status":"Message sent"}
+2025-06-02 13:58:44 - Teste Receive-Send-API concluído com sucesso!
