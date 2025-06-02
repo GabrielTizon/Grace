@@ -1,85 +1,73 @@
-import redis
-import json
+import json, redis
 
 class MessageService:
     def __init__(self, redis_client, message_model):
-        self.redis_client = redis_client
-        self.message_model = message_model
+        self.redis = redis_client
+        self.model = message_model
 
+    # --- helpers ---
+    def _deserialize(self, raw):
+        """bytes → str → dict"""
+        if isinstance(raw, (bytes, bytearray)):
+            raw = raw.decode('utf-8')
+        return json.loads(raw)
+
+    # ------------- criar -------------
     def store_message_in_history(self, user_id_send, user_id_receive, message):
-        try:
-            success = self.message_model.create(user_id_send, user_id_receive, message)
-            if success:
-                return {'status': 'Message recorded in history'}
-            else:
-                return {'error': 'Failed to record message in history due to database error', 'status_code': 500}
-        except Exception as e:
-            return {'error': f'Failed to record message in history: {str(e)}', 'status_code': 500}
+        # grava banco
+        row = self.model.create(user_id_send, user_id_receive, message)
+        if row is None:
+            return None
 
+        # invalida caches relacionados
+        self.redis.delete(f"messages_received:{user_id_receive}")
+        min_id, max_id = sorted((user_id_send, user_id_receive))
+        self.redis.delete(f"messages_channel:{min_id}_{max_id}")
+
+        return row
+
+    # ------------- leitura por destinatário -------------
     def get_messages_for_user(self, user_id_receive):
-        cache_key = f'messages_received:{user_id_receive}'
+        cache_key = f"messages_received:{user_id_receive}"
+
         try:
-            cached_messages_json_list = self.redis_client.lrange(cache_key, 0, -1)
-            if cached_messages_json_list:
-                return [json.loads(msg_json.decode('utf-8')) for msg_json in cached_messages_json_list]
+            cached = self.redis.lrange(cache_key, 0, -1)
+            if cached:
+                return [self._deserialize(x) for x in cached]
 
-            db_messages_tuples = self.message_model.find_by_user_receive(user_id_receive)
-            if db_messages_tuples is None:
-                 return {'error': 'Failed to retrieve messages from database', 'status_code': 500}
+            rows = self.model.find_by_user_receive(user_id_receive)
+            if rows is None:
+                return None
 
-            messages_list = []
-            if db_messages_tuples:
-                pipe = self.redis_client.pipeline()
-                for row_tuple in db_messages_tuples:
-                    msg_dict = {
-                        'id': row_tuple[0],
-                        'userIdSend': row_tuple[1],
-                        'userIdReceive': row_tuple[2],
-                        'message': row_tuple[3],
-                        'created_at': row_tuple[4].isoformat() if row_tuple[4] else None
-                    }
-                    messages_list.append(msg_dict)
-                    pipe.rpush(cache_key, json.dumps(msg_dict))
-                pipe.expire(cache_key, 3600)
-                pipe.execute()
-            return messages_list
+            # guarda no cache
+            pipe = self.redis.pipeline()
+            for r in rows:
+                pipe.rpush(cache_key, json.dumps(r))
+            pipe.expire(cache_key, 3600).execute()
+            return rows
         except redis.RedisError as e:
-            return {'error': f'Redis error in get_messages_for_user: {str(e)}', 'status_code': 500}
-        except Exception as e:
-            return {'error': f'Server error in get_messages_for_user: {str(e)}', 'status_code': 500}
+            print(f"[Redis] {e}")
+            return rows if 'rows' in locals() else None
 
-    def get_messages_for_channel(self, user_id_send, user_id_receive):
-        
-        key_part1 = min(str(user_id_send), str(user_id_receive))
-        key_part2 = max(str(user_id_send), str(user_id_receive))
-        cache_key = f'messages_channel:{key_part1}_{key_part2}'
-        
+    # ------------- leitura por canal -------------
+    def get_messages_for_channel(self, u1, u2):
+        min_id, max_id = sorted((u1, u2))
+        cache_key = f"messages_channel:{min_id}_{max_id}"
+
         try:
-            cached_messages_json_list = self.redis_client.lrange(cache_key, 0, -1)
-            if cached_messages_json_list:
-                return [json.loads(msg_json.decode('utf-8')) for msg_json in cached_messages_json_list]
+            cached = self.redis.lrange(cache_key, 0, -1)
+            if cached:
+                return [self._deserialize(x) for x in cached]
 
-            db_messages_tuples = self.message_model.find_by_channel(user_id_send, user_id_receive)
-            if db_messages_tuples is None:
-                return {'error': 'Failed to retrieve channel messages from database', 'status_code': 500}
-            
-            messages_list = []
-            if db_messages_tuples:
-                pipe = self.redis_client.pipeline()
-                for row_tuple in db_messages_tuples:
-                    msg_dict = {
-                        'id': row_tuple[0],
-                        'userIdSend': row_tuple[1],
-                        'userIdReceive': row_tuple[2],
-                        'message': row_tuple[3],
-                        'created_at': row_tuple[4].isoformat() if row_tuple[4] else None
-                    }
-                    messages_list.append(msg_dict)
-                    pipe.rpush(cache_key, json.dumps(msg_dict))
-                pipe.expire(cache_key, 3600)
-                pipe.execute()
-            return messages_list
+            rows = self.model.find_by_channel(u1, u2)
+            if rows is None:
+                return None
+
+            pipe = self.redis.pipeline()
+            for r in rows:
+                pipe.rpush(cache_key, json.dumps(r))
+            pipe.expire(cache_key, 3600).execute()
+            return rows
         except redis.RedisError as e:
-            return {'error': f'Redis error in get_messages_for_channel: {str(e)}', 'status_code': 500}
-        except Exception as e:
-            return {'error': f'Server error in get_messages_for_channel: {str(e)}', 'status_code': 500}
+            print(f"[Redis] {e}")
+            return rows if 'rows' in locals() else None
