@@ -26,6 +26,13 @@ $uri = $_SERVER['REQUEST_URI'] ?? '/';
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $jwtSecret = 'your_secret_key';
 
+// Health check endpoint
+if ($method === 'GET' && $uri === '/health') {
+    http_response_code(200);
+    echo json_encode(['status' => 'OK']);
+    exit;
+}
+
 // REGISTER
 if ($method === 'POST' && strpos($uri, '/register') !== false) {
     if (!isset($input['username'], $input['password'])) {

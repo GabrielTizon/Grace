@@ -33,7 +33,7 @@ services:
     ports:
       - "9000:80"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/register"]
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
       interval: 30s
       timeout: 10s
       retries: 3
