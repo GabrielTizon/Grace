@@ -1,0 +1,24 @@
+2025-06-02 17:59:20 - Starting Auth-API test...
+2025-06-02 17:59:20 - jq found. Using for JSON validation and extraction.
+2025-06-02 17:59:20 - Cleaning up existing user 'test' if present via http://localhost:9000/users/test ...
+2025-06-02 17:59:20 - Cleanup attempt for user 'test' returned HTTP status: 404. Response: {"error":"Endpoint not found","uri_debug":"\/users\/test","method_debug":"DELETE"}
+2025-06-02 17:59:20 - Attempting to register user 'test' at http://localhost:9000/user
+2025-06-02 17:59:20 - Payload: {
+    "username": "test",
+    "password": "testpassword",
+    "name": "Test",
+    "lastName": "User",
+    "email": "test@example.com"
+}
+2025-06-02 17:59:20 - Received HTTP status code: 200
+2025-06-02 17:59:20 - Response body: <br />
+<b>Warning</b>:  Undefined array key "lastName" in <b>/app/public/index.php</b> on line <b>138</b><br />
+<br />
+<b>Warning</b>:  http_response_code(): Cannot set response code - headers already sent (output started at /app/public/index.php:138) in <b>/app/public/index.php</b> on line <b>32</b><br />
+{"message":"ok","user":{"id":2,"username":"test","name":"Test","lastName":null,"email":"test@example.com"}}
+2025-06-02 17:59:20 - ERROR: API request to register user failed with HTTP status code 200.
+2025-06-02 17:59:20 - ERROR: Full response body: <br />
+<b>Warning</b>:  Undefined array key "lastName" in <b>/app/public/index.php</b> on line <b>138</b><br />
+<br />
+<b>Warning</b>:  http_response_code(): Cannot set response code - headers already sent (output started at /app/public/index.php:138) in <b>/app/public/index.php</b> on line <b>32</b><br />
+{"message":"ok","user":{"id":2,"username":"test","name":"Test","lastName":null,"email":"test@example.com"}}

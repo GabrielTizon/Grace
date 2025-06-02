@@ -1,0 +1,147 @@
+Starting deployment...
+Building images...
+Compose can now delegate builds to bake for better performance.
+ To do so, set COMPOSE_BAKE=true.
+#0 building with "default" instance using docker driver
+
+#1 [auth-api internal] load build definition from Dockerfile
+#1 DONE 0.0s
+
+#1 [auth-api internal] load build definition from Dockerfile
+#1 transferring dockerfile: 759B done
+#1 DONE 0.0s
+
+#2 [record-api internal] load build definition from Dockerfile
+#2 transferring dockerfile: 200B done
+#2 DONE 0.1s
+
+#3 [receive-send-api internal] load build definition from Dockerfile
+#3 transferring dockerfile: 153B done
+#3 DONE 0.1s
+
+#4 [record-api internal] load metadata for docker.io/library/python:3.12-slim
+#4 ...
+
+#5 [auth-api internal] load metadata for docker.io/library/php:8.3-fpm
+#5 DONE 0.6s
+
+#4 [record-api internal] load metadata for docker.io/library/python:3.12-slim
+#4 DONE 0.6s
+
+#6 [receive-send-api internal] load metadata for docker.io/library/node:20.17
+#6 DONE 0.6s
+
+#7 [auth-api internal] load .dockerignore
+#7 transferring context: 2B done
+#7 DONE 0.1s
+
+#8 [auth-api  1/10] FROM docker.io/library/php:8.3-fpm@sha256:6c4391a739ec0a07c57f4f3af374c3262797f281207363bcf44c289bb4d7caa0
+#8 DONE 0.0s
+
+#9 [record-api internal] load .dockerignore
+#9 transferring context: 2B done
+#9 DONE 0.1s
+
+#10 [auth-api internal] load build context
+#10 transferring context: 346B done
+#10 DONE 0.1s
+
+#11 [receive-send-api internal] load .dockerignore
+#11 transferring context: 2B done
+#11 DONE 0.1s
+
+#12 [record-api 1/5] FROM docker.io/library/python:3.12-slim@sha256:fd95fa221297a88e1cf49c55ec1828edd7c5a428187e67b5d1805692d11588db
+#12 DONE 0.0s
+
+#13 [receive-send-api 1/5] FROM docker.io/library/node:20.17@sha256:db5dd2f30cb82a8bdbd16acd4a8f3f2789f5b24f6ce43f98aa041be848c82e45
+#13 DONE 0.0s
+
+#14 [auth-api  4/10] COPY composer.json .
+#14 CACHED
+
+#15 [auth-api  7/10] RUN chown -R www-data:www-data /app
+#15 CACHED
+
+#16 [auth-api  2/10] RUN apt-get update && apt-get install -y     libpq-dev     git     libzip-dev     postgresql-client     && docker-php-ext-install pdo pdo_pgsql zip     && pecl install redis     && docker-php-ext-enable redis     && curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+#16 CACHED
+
+#17 [auth-api  8/10] COPY php-fpm.conf /usr/local/etc/php-fpm.conf
+#17 CACHED
+
+#18 [auth-api  6/10] COPY src/ .
+#18 CACHED
+
+#19 [auth-api  5/10] RUN composer install --prefer-dist --no-interaction --optimize-autoloader --verbose || { echo "Composer install failed"; exit 1; }
+#19 CACHED
+
+#20 [auth-api  9/10] COPY entrypoint.sh /entrypoint.sh
+#20 CACHED
+
+#21 [auth-api  3/10] WORKDIR /app
+#21 CACHED
+
+#22 [auth-api 10/10] RUN chmod +x /entrypoint.sh
+#22 CACHED
+
+#23 [record-api internal] load build context
+#23 transferring context: 250B done
+#23 DONE 0.0s
+
+#24 [receive-send-api internal] load build context
+#24 transferring context: 171B done
+#24 DONE 0.1s
+
+#25 [auth-api] exporting to image
+#25 exporting layers done
+#25 writing image sha256:81ffabeb401d8b90167dfaad2584a7b8723130e6cfce36191b9baf99e414ec90 done
+#25 naming to docker.io/library/grace-auth-api done
+#25 DONE 0.0s
+
+#26 [record-api 2/5] WORKDIR /app
+#26 CACHED
+
+#27 [record-api 3/5] COPY src/ .
+#27 CACHED
+
+#28 [record-api 4/5] COPY requirements.txt .
+#28 CACHED
+
+#29 [record-api 5/5] RUN pip install --no-cache-dir -r requirements.txt
+#29 CACHED
+
+#30 [receive-send-api 4/5] COPY package.json .
+#30 CACHED
+
+#31 [receive-send-api 2/5] WORKDIR /app
+#31 CACHED
+
+#32 [receive-send-api 3/5] COPY src/ .
+#32 CACHED
+
+#33 [receive-send-api 5/5] RUN npm install
+#33 CACHED
+
+#34 [record-api] exporting to image
+#34 exporting layers done
+#34 writing image sha256:d64deaa71a74cd4a212be0d9cff898310968e0fa80ca59952e86292b94b72c5f done
+#34 naming to docker.io/library/grace-record-api done
+#34 DONE 0.0s
+
+#35 [receive-send-api] exporting to image
+#35 exporting layers done
+#35 writing image sha256:b1ba283fc1a2315beafbc147f64f7d61227310eee74940b0d4cdf4e589a99e68 done
+#35 naming to docker.io/library/grace-receive-send-api done
+#35 DONE 0.0s
+
+#36 [auth-api] resolving provenance for metadata file
+#36 DONE 0.0s
+
+#37 [record-api] resolving provenance for metadata file
+#37 DONE 0.0s
+
+#38 [receive-send-api] resolving provenance for metadata file
+#38 DONE 0.0s
+Starting containers...
+Running health checks...
+Checking health of auth-api...
+auth-api is not healthy. Check logs.
