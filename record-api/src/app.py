@@ -41,6 +41,11 @@ message_model = MessageModel(db_connection)
 message_service = MessageService(redis_client, message_model)
 
 # ---------- Rotas ----------
+
+@app.route('/health')
+def health():
+    return {'status': 'ok'}, 200
+
 @app.route('/')
 def index():
     return jsonify({

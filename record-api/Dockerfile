@@ -10,6 +10,10 @@ RUN apt-get update && \
     apt-get install -y gcc libpq-dev && \
     rm -rf /var/lib/apt/lists/*
 
+RUN apt-get update && \
+    apt-get install -y gcc libpq-dev curl && \
+    rm -rf /var/lib/apt/lists/*
+
 # ── 1ª camada: requirements.txt (agora no diretório raiz do contexto)
 COPY requirements.txt ./requirements.txt
 RUN pip install --upgrade pip && \
