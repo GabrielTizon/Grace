@@ -6,7 +6,7 @@ class MessageModel:
 
     def create(self, user_id_send, user_id_receive, message):
         sql = """
-            INSERT INTO messages (user_id_send, user_id_receive, message)
+            INSERT INTO messages ("userIdSend", "userIdReceive", message)
             VALUES (%s, %s, %s)
             RETURNING id, created_at;
         """
