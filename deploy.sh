@@ -17,7 +17,7 @@ docker compose up -d         # inicia em modo detached
 # 2. Health-check simples (até 60 s) para serviços chave
 SERVICES=(db redis record-api receive-send-api nginx-auth)
 MAX_TRIES=30
-SLEEP=2
+SLEEP=10
 
 for svc in "${SERVICES[@]}"; do
   echo "Aguardando $svc ficar saudável…"
