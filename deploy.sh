@@ -1,142 +1,90 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# --------------------------------------------------------------
+#  deploy.sh  –  build, up, health-check e testes automatizados
+# --------------------------------------------------------------
+set -euo pipefail
 
-# Aborta o script se qualquer comando falhar
-set -e
-# Garante que o status de saída de um pipeline seja o do último comando que falhou
-set -o pipefail
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+LOG_FILE="$SCRIPT_DIR/deploy.log"
 
-LOG_FILE="deploy.log"
+# -----------------------------------------------------------------------------
+# 1. Logging helpers
+# -----------------------------------------------------------------------------
+exec > >(tee -a "$LOG_FILE") 2>&1   # tudo que sai vai para console + log
 
-# Limpa o log antigo ou cria um novo
-echo "" > "$LOG_FILE"
+log()   { echo "$(date '+%F %T')  $*"; }
+error() { log "ERROR: $*"; exit 1; }
 
-log_action() {
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" | tee -a "$LOG_FILE"
-}
+log "=== DEPLOY INICIADO ==="
+log "Log completo em: $LOG_FILE"
 
-log_error() {
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - ERROR: $1" | tee -a "$LOG_FILE" >&2
-}
+# -----------------------------------------------------------------------------
+# 2. Ambiente limpo
+# -----------------------------------------------------------------------------
+log "Derrubando contêineres antigos..."
+docker compose down -v --remove-orphans
 
-log_action "Iniciando o processo de deployment..."
+# -----------------------------------------------------------------------------
+# 3. Build das imagens
+# -----------------------------------------------------------------------------
+log "Construindo imagens..."
+docker compose build
 
-# 1. Parar e remover contêineres antigos para um ambiente limpo (opcional, mas recomendado)
-log_action "Parando e removendo contêineres existentes (se houver)..."
-docker-compose down -v --remove-orphans | tee -a "$LOG_FILE"
+# -----------------------------------------------------------------------------
+# 4. Subir serviços
+# -----------------------------------------------------------------------------
+log "Subindo stack em modo detached..."
+docker compose up -d
 
-# 2. Build das imagens Docker
-log_action "Construindo as imagens Docker..."
-docker-compose build | tee -a "$LOG_FILE"
-if [ ${PIPESTATUS[0]} -ne 0 ]; then
-    log_error "Falha no build das imagens. Verifique o $LOG_FILE."
-    exit 1
-fi
-log_action "Build das imagens concluído com sucesso."
+# -----------------------------------------------------------------------------
+# 5. Health-check (até 60 s)
+# -----------------------------------------------------------------------------
+SERVICES=("nginx-auth" "record-api" "receive-send-api" "db" "redis")
+MAX_TRIES=30
+SLEEP_SEC=2
 
-# 3. Iniciar os contêineres em modo detached
-log_action "Iniciando os contêineres Docker..."
-docker-compose up -d | tee -a "$LOG_FILE"
-if [ ${PIPESTATUS[0]} -ne 0 ]; then
-    log_error "Falha ao iniciar os contêineres. Verifique o $LOG_FILE."
-    exit 1
-fi
-log_action "Contêineres iniciados com sucesso."
+for svc in "${SERVICES[@]}"; do
+  log "→ Aguardando saúde do serviço: $svc"
+  for ((i=1; i<=MAX_TRIES; i++)); do
+    # status = healthy | unhealthy | starting | '' (sem healthcheck)
+    status=$(docker inspect -f '{{.State.Health.Status 2>/dev/null}}' "$svc" || true)
 
-# 4. Verificações de saúde dos serviços
-log_action "Executando verificações de saúde dos serviços..."
-# Serviços com healthcheck definido no docker-compose.yml
-# nginx-auth reflete a saúde da auth-api através do proxy
-services_to_check=("nginx-auth" "record-api" "receive-send-api" "db" "redis")
-all_healthy=true
-
-for service in "${services_to_check[@]}"; do
-    log_action "Verificando saúde do serviço: $service..."
-    healthy_found=false
-    for i in {1..30}; do # Tenta por até 60 segundos (30 * 2s)
-        status=$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}no healthcheck{{end}}' "$service" 2>/dev/null || echo "error inspecting")
-        
-        if [ "$status" = "healthy" ]; then
-            log_action "Serviço $service está saudável."
-            healthy_found=true
-            break
-        elif [ "$status" = "no healthcheck" ]; then
-            log_action "Serviço $service não possui healthcheck definido no docker-compose. Assumindo OK se estiver rodando."
-            # Verificar se está rodando
-            if [ "$(docker inspect -f '{{.State.Running}}' "$service")" = "true" ]; then
-                 log_action "Serviço $service está rodando."
-                 healthy_found=true
-            else
-                log_action "Serviço $service não está rodando."
-            fi
-            break 
-        elif [ "$status" = "error inspecting" ]; then
-             log_action "Erro ao inspecionar o serviço $service. Pode ainda não estar pronto."
-        fi
-        
-        if [ $i -eq 30 ]; then
-            log_error "Serviço $service não ficou saudável após as tentativas. Status: $status. Verifique os logs do contêiner: docker logs $service"
-            all_healthy=false
-            # break # Sai do loop de tentativas para este serviço
-        fi
-        log_action "Serviço $service ainda não está saudável (Status: $status). Tentando novamente em 2 segundos... ($i/30)"
-        sleep 2
-    done
-    if [ "$healthy_found" = false ]; then
-        all_healthy=false
+    if [[ "$status" == "healthy" ]]; then
+      log "   $svc saudável ✔︎"
+      break
+    elif [[ -z "$status" ]]; then
+      # sem healthcheck → checar se container está RUNNING
+      running=$(docker inspect -f '{{.State.Running}}' "$svc")
+      [[ "$running" == "true" ]] && { log "   $svc rodando (sem healthcheck) ✔︎"; break; }
     fi
+
+    if (( i == MAX_TRIES )); then
+      error "$svc não ficou saudável após $((MAX_TRIES*SLEEP_SEC)) s (estado: ${status:-no healthcheck})"
+    fi
+    sleep "$SLEEP_SEC"
+  done
 done
 
-if [ "$all_healthy" = false ]; then
-    log_error "Um ou mais serviços não ficaram saudáveis. Abortando."
-    exit 1
-fi
-log_action "Todos os serviços verificados estão operacionais."
+log "Todos os serviços OK."
 
-# 5. Executar testes automatizados
-log_action "Executando testes automatizados..."
-if [ ! -d "tests" ]; then
-    log_error "Diretório 'tests' não encontrado. Os testes não podem ser executados."
-    exit 1
-fi
+# -----------------------------------------------------------------------------
+# 6. Executar testes
+# -----------------------------------------------------------------------------
+TEST_DIR="$SCRIPT_DIR/tests"
+[[ -d "$TEST_DIR" ]] || error "Diretório de testes não encontrado: $TEST_DIR"
 
-cd tests # Navega para o diretório de testes
-
-# Define a ordem de execução dos testes
-# test_auth.sh: Gera jwt.txt, necessário para integracao_test.sh
-# test_record.sh e test_receive_send.sh: Testes mais isolados de API
-# integracao_test.sh: Teste E2E que depende dos outros serviços e do jwt.txt
-declare -a test_scripts=(
-    "test_auth.sh"
-    "test_record.sh"
-    "test_receive_send.sh"
-    "integracao_test.sh"
+declare -a TESTS=(
+  "test_auth.sh"
+  "test_record.sh"
+  "test_receive_send.sh"
+  "integracao_test.sh"
 )
 
-for test_script in "${test_scripts[@]}"; do
-    log_action "Executando script de teste: $test_script..."
-    if [ -f "$test_script" ]; then
-        chmod +x "$test_script" # Garante que o script é executável
-        # Redireciona stdout e stderr do script de teste para o log principal e para o console
-        if ./"$test_script" >> "../$LOG_FILE" 2>&1; then
-            log_action "Teste $test_script passou."
-        else
-            log_error "Teste $test_script FALHOU. Verifique o $LOG_FILE para detalhes."
-            # Opcional: parar a implantação na primeira falha de teste
-            # exit 1
-            all_healthy=false # Marca que um teste falhou
-        fi
-    else
-        log_error "Script de teste $test_script não encontrado."
-        all_healthy=false
-    fi
+for t in "${TESTS[@]}"; do
+  [[ -x "$TEST_DIR/$t" ]] || error "Script de teste não encontrado ou sem permissão: $t"
+  log "→ Rodando $t ..."
+  (cd "$TEST_DIR" && "./$t")
+  log "   $t passou ✔︎"
 done
 
-cd .. # Retorna ao diretório original (apis)
-
-if [ "$all_healthy" = false ]; then
-    log_error "Um ou mais testes automatizados falharam. Verifique o $LOG_FILE."
-    exit 1
-fi
-
-log_action "Deployment e testes automatizados concluídos com sucesso!"
-exit 0
+log "=== DEPLOY E TESTES FINALIZADOS COM SUCESSO ==="
