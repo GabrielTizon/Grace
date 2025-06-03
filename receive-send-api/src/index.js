@@ -1,3 +1,5 @@
+require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
+
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const redis = require('redis');
@@ -6,8 +8,9 @@ const MessageService = require('./services/messageService');
 const app = express();
 app.use(express.json());
 
+// Configuração do Redis usando .env
 const redisClient = redis.createClient({
-    url: `redis://${process.env.REDIS_HOST || 'redis'}:6379`
+    url: `redis://${process.env.REDIS_HOST}:6379`
 });
 
 const messageService = new MessageService(redisClient);
@@ -22,6 +25,7 @@ const messageService = new MessageService(redisClient);
     }
 })();
 
+// Middleware para extrair token JWT
 const extractToken = (req, res, next) => {
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -34,11 +38,14 @@ const extractToken = (req, res, next) => {
 
 app.use(extractToken);
 
+// Health check
 app.get('/health', (req, res) => {
     res.status(200).json({ status: 'Receive-Send-API is OK' });
 });
+
 app.get('/', (req, res) => res.send('Receive-Send API is running'));
 
+// Endpoint para enfileirar mensagem
 app.post('/message', async (req, res) => {
     const { userIdSend, userIdReceive, message } = req.body;
     const token = req.token;
@@ -59,19 +66,20 @@ app.post('/message', async (req, res) => {
     if (!enqueueResult.success) {
         return res.status(500).json({ error: 'Failed to enqueue message', details: enqueueResult.error });
     }
-    
+
     return res.status(201).json({ message: 'mesage sended with success' });
 });
 
+// Worker para processar mensagens da fila
 app.post('/message/worker', async (req, res) => {
     const { userIdSend, userIdReceive } = req.body;
     const token = req.token;
-    
+
     if (!token) {
         return res.status(401).json({ msg: 'not auth', error: 'Token required for worker' });
     }
     try {
-        jwt.verify(token, process.env.JWT_SECRET || 'your_fallback_secret_key_receive_send');
+        jwt.verify(token, process.env.JWT_SECRET);
     } catch (e) {
         return res.status(401).json({ msg: 'not auth', error: 'Invalid token for worker: ' + e.message });
     }
@@ -89,6 +97,7 @@ app.post('/message/worker', async (req, res) => {
     }
 });
 
+// Buscar mensagens de todos os canais do usuário
 app.get('/message', async (req, res) => {
     const requestingUserIdentifier = req.query.user;
     const token = req.token;
@@ -109,14 +118,18 @@ app.get('/message', async (req, res) => {
     if (!allUsers || !Array.isArray(allUsers)) {
         return res.status(500).json({ error: 'Failed to fetch users from Auth-API or invalid format' });
     }
-    
+
     let allFormattedMessages = [];
     for (const targetUser of allUsers) {
-        const targetUserIdentifier = targetUser.email || targetUser.username; 
+        const targetUserIdentifier = targetUser.email || targetUser.username;
         if (!targetUserIdentifier || targetUserIdentifier === requestingUserIdentifier) continue;
 
-        const channelMessages = await messageService.getMessagesFromRecordAPIForChannel(targetUserIdentifier, requestingUserIdentifier, token);
-        
+        const channelMessages = await messageService.getMessagesFromRecordAPIForChannel(
+            targetUserIdentifier,
+            requestingUserIdentifier,
+            token
+        );
+
         channelMessages.forEach(msg => {
             allFormattedMessages.push({
                 userId: msg.userIdSend,
@@ -124,11 +137,11 @@ app.get('/message', async (req, res) => {
             });
         });
     }
-    
-    
+
     return res.status(200).json(allFormattedMessages);
 });
 
+// Inicializa o servidor
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`🚀 Receive-Send-API Server running on port ${PORT}`);

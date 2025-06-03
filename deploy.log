@@ -1,156 +1,153 @@
 
-2025-06-02 23:20:19 - Iniciando o processo de deployment...
-2025-06-02 23:20:19 - Parando e removendo contêineres existentes (se houver)...
-2025-06-02 23:20:19 - Construindo as imagens Docker...
+2025-06-03 00:52:29 - Iniciando o processo de deployment...
+2025-06-03 00:52:29 - Parando e removendo contêineres existentes (se houver)...
+2025-06-03 00:52:40 - Construindo as imagens Docker...
 Compose can now delegate builds to bake for better performance.
  To do so, set COMPOSE_BAKE=true.
 #0 building with "default" instance using docker driver
 
-#1 [record-api internal] load build definition from Dockerfile
-#1 transferring dockerfile: 675B done
+#1 [receive-send-api internal] load build definition from Dockerfile
+#1 transferring dockerfile: 283B done
 #1 DONE 0.0s
 
-#2 [receive-send-api internal] load build definition from Dockerfile
-#2 transferring dockerfile: 283B done
+#2 [record-api internal] load build definition from Dockerfile
+#2 transferring dockerfile: 675B done
 #2 DONE 0.1s
 
 #3 [auth-api internal] load build definition from Dockerfile
 #3 transferring dockerfile: 761B done
 #3 DONE 0.1s
 
-#4 [record-api internal] load metadata for docker.io/library/python:3.12-slim
-#4 DONE 1.1s
+#4 [auth-api internal] load metadata for docker.io/library/php:8.3-fpm
+#4 ...
 
-#5 [auth-api internal] load metadata for docker.io/library/php:8.3-fpm
-#5 DONE 1.1s
+#5 [receive-send-api internal] load metadata for docker.io/library/node:20.17
+#5 DONE 0.6s
 
-#6 [receive-send-api internal] load metadata for docker.io/library/node:20.17
-#6 DONE 1.1s
+#6 [record-api internal] load metadata for docker.io/library/python:3.12-slim
+#6 DONE 0.6s
 
-#7 [record-api internal] load .dockerignore
+#4 [auth-api internal] load metadata for docker.io/library/php:8.3-fpm
+#4 DONE 0.6s
+
+#7 [receive-send-api internal] load .dockerignore
 #7 transferring context: 2B done
 #7 DONE 0.0s
 
-#8 [record-api 1/6] FROM docker.io/library/python:3.12-slim@sha256:fd95fa221297a88e1cf49c55ec1828edd7c5a428187e67b5d1805692d11588db
+#8 [receive-send-api 1/5] FROM docker.io/library/node:20.17@sha256:db5dd2f30cb82a8bdbd16acd4a8f3f2789f5b24f6ce43f98aa041be848c82e45
 #8 DONE 0.0s
 
-#9 [receive-send-api internal] load .dockerignore
+#9 [record-api internal] load .dockerignore
 #9 transferring context: 2B done
 #9 DONE 0.1s
 
-#10 [record-api internal] load build context
-#10 transferring context: 7.16kB done
+#10 [receive-send-api internal] load build context
+#10 transferring context: 171B done
 #10 DONE 0.1s
 
 #11 [auth-api internal] load .dockerignore
 #11 transferring context: 2B done
 #11 DONE 0.1s
 
-#12 [receive-send-api 1/5] FROM docker.io/library/node:20.17@sha256:db5dd2f30cb82a8bdbd16acd4a8f3f2789f5b24f6ce43f98aa041be848c82e45
+#12 [record-api 1/6] FROM docker.io/library/python:3.12-slim@sha256:fd95fa221297a88e1cf49c55ec1828edd7c5a428187e67b5d1805692d11588db
 #12 DONE 0.0s
 
 #13 [auth-api  1/10] FROM docker.io/library/php:8.3-fpm@sha256:6c4391a739ec0a07c57f4f3af374c3262797f281207363bcf44c289bb4d7caa0
 #13 DONE 0.0s
 
-#14 [record-api 2/6] WORKDIR /app
+#14 [receive-send-api 2/5] WORKDIR /app
 #14 CACHED
 
-#15 [record-api 3/6] RUN apt-get update &&     apt-get install -y gcc libpq-dev &&     rm -rf /var/lib/apt/lists/*
+#15 [receive-send-api 3/5] COPY src/ .
 #15 CACHED
 
-#16 [record-api 4/6] COPY requirements.txt ./requirements.txt
+#16 [receive-send-api 4/5] COPY package.json .
 #16 CACHED
 
-#17 [record-api 5/6] RUN pip install --upgrade pip &&     pip install --no-cache-dir -r requirements.txt
+#17 [receive-send-api 5/5] RUN npm install
 #17 CACHED
 
-#18 [record-api 6/6] COPY src/ .
-#18 CACHED
+#18 [record-api internal] load build context
+#18 transferring context: 330B done
+#18 DONE 0.0s
 
-#19 [receive-send-api internal] load build context
-#19 transferring context: 9.92kB done
-#19 DONE 0.1s
+#19 [receive-send-api] exporting to image
+#19 exporting layers done
+#19 writing image sha256:e9f93a045b05fefb17728976474814c7a7e30f75971c7f0794018afac3c432a4 done
+#19 naming to docker.io/library/grace-receive-send-api done
+#19 DONE 0.0s
 
-#20 [record-api] exporting to image
-#20 exporting layers done
-#20 writing image sha256:df4c62c6e71475c1b24a0a6cf4eb1f1ee8c382f1137e94e45c021d441b77852a done
-#20 naming to docker.io/library/grace-record-api 0.0s done
+#20 [auth-api internal] load build context
+#20 transferring context: 346B done
 #20 DONE 0.1s
 
-#21 [auth-api internal] load build context
-#21 transferring context: 12.88kB done
-#21 DONE 0.1s
+#21 [record-api 4/6] COPY requirements.txt ./requirements.txt
+#21 CACHED
 
-#22 [receive-send-api 2/5] WORKDIR /app
+#22 [record-api 5/6] RUN pip install --upgrade pip &&     pip install --no-cache-dir -r requirements.txt
 #22 CACHED
 
-#23 [receive-send-api 3/5] COPY src/ .
+#23 [record-api 3/6] RUN apt-get update &&     apt-get install -y gcc libpq-dev &&     rm -rf /var/lib/apt/lists/*
 #23 CACHED
 
-#24 [receive-send-api 4/5] COPY package.json .
+#24 [record-api 2/6] WORKDIR /app
 #24 CACHED
 
-#25 [receive-send-api 5/5] RUN npm install
+#25 [record-api 6/6] COPY src/ .
 #25 CACHED
 
 #26 [auth-api  5/10] RUN composer install --prefer-dist --no-interaction --optimize-autoloader --verbose || { echo "Composer install failed"; exit 1; }
 #26 CACHED
 
-#27 [auth-api  7/10] RUN chown -R www-data:www-data /app
+#27 [auth-api  3/10] WORKDIR /app
 #27 CACHED
 
-#28 [auth-api  8/10] COPY php-fpm.conf /usr/local/etc/php-fpm.conf
+#28 [auth-api  9/10] COPY entrypoint.sh /entrypoint.sh
 #28 CACHED
 
-#29 [auth-api  2/10] RUN apt-get update && apt-get install -y     libpq-dev     git     libzip-dev     postgresql-client     && docker-php-ext-install pdo pdo_pgsql zip     && pecl install redis     && docker-php-ext-enable redis     && curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+#29 [auth-api  6/10] COPY src/ .
 #29 CACHED
 
-#30 [auth-api  6/10] COPY src/ .
+#30 [auth-api  7/10] RUN chown -R www-data:www-data /app
 #30 CACHED
 
-#31 [auth-api  9/10] COPY entrypoint.sh /entrypoint.sh
+#31 [auth-api  2/10] RUN apt-get update && apt-get install -y     libpq-dev     git     libzip-dev     postgresql-client     && docker-php-ext-install pdo pdo_pgsql zip     && pecl install redis     && docker-php-ext-enable redis     && curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 #31 CACHED
 
-#32 [auth-api  4/10] COPY composer.json .
+#32 [auth-api  8/10] COPY php-fpm.conf /usr/local/etc/php-fpm.conf
 #32 CACHED
 
-#33 [auth-api  3/10] WORKDIR /app
+#33 [auth-api  4/10] COPY composer.json .
 #33 CACHED
 
 #34 [auth-api 10/10] RUN chmod +x /entrypoint.sh
 #34 CACHED
 
-#35 [receive-send-api] exporting to image
+#35 [auth-api] exporting to image
 #35 exporting layers done
-#35 writing image sha256:bcd69aba31aedaff31f1e38160a66ab40b1d103010d1dd31f8532b9a731f7b6f done
-#35 naming to docker.io/library/grace-receive-send-api
-#35 naming to docker.io/library/grace-receive-send-api done
+#35 writing image sha256:4e2fddcb6b46186ad60d9650dc3c58173f4bc283a0e81a3eb4a941959cf8676d done
+#35 naming to docker.io/library/grace-auth-api
+#35 naming to docker.io/library/grace-auth-api done
 #35 DONE 0.1s
 
-#36 [auth-api] exporting to image
+#36 [record-api] exporting to image
 #36 exporting layers done
-#36 writing image sha256:d0d8fd06b0f9c1d054913cf79bb1bedcba92e26dbae9a8091e1db2bae694b19f done
-#36 naming to docker.io/library/grace-auth-api 0.0s done
+#36 writing image sha256:f76acaa32a6773826198174b3aba86fdb9d92f61299f03e3780ca7ab83eb0cc8 done
+#36 naming to docker.io/library/grace-record-api done
 #36 DONE 0.1s
 
-#37 [record-api] resolving provenance for metadata file
-#37 DONE 0.1s
+#37 [receive-send-api] resolving provenance for metadata file
+#37 DONE 0.0s
 
-#38 [receive-send-api] resolving provenance for metadata file
+#38 [record-api] resolving provenance for metadata file
 #38 DONE 0.0s
 
 #39 [auth-api] resolving provenance for metadata file
 #39 DONE 0.0s
-2025-06-02 23:20:21 - Build das imagens concluído com sucesso.
-2025-06-02 23:20:21 - Iniciando os contêineres Docker...
-2025-06-02 23:20:33 - Contêineres iniciados com sucesso.
-2025-06-02 23:20:33 - Executando verificações de saúde dos serviços...
-2025-06-02 23:20:33 - Verificando saúde do serviço: nginx-auth...
-2025-06-02 23:20:33 - Serviço nginx-auth ainda não está saudável (Status: starting). Tentando novamente em 2 segundos... (1/30)
-2025-06-02 23:20:35 - Serviço nginx-auth ainda não está saudável (Status: starting). Tentando novamente em 2 segundos... (2/30)
-2025-06-02 23:20:37 - Serviço nginx-auth ainda não está saudável (Status: starting). Tentando novamente em 2 segundos... (3/30)
-2025-06-02 23:20:39 - Serviço nginx-auth ainda não está saudável (Status: starting). Tentando novamente em 2 segundos... (4/30)
-2025-06-02 23:20:41 - Serviço nginx-auth ainda não está saudável (Status: starting). Tentando novamente em 2 segundos... (5/30)
-2025-06-02 23:20:43 - Serviço nginx-auth ainda não está saudável (Status: starting). Tentando novamente em 2 segundos... (6/30)
-2025-06-02 23:20:45 - Serviço nginx-auth ainda não está saudável (Status: starting). Tentando novamente em 2 segundos... (7/30)
-2025-06-02 23:20:47 - Serviço nginx-auth ainda não está saudável (Status: starting). Tentando novamente em 2 segundos... (8/30)
+2025-06-03 00:52:41 - Build das imagens concluído com sucesso.
+2025-06-03 00:52:41 - Iniciando os contêineres Docker...
+2025-06-03 00:52:53 - Contêineres iniciados com sucesso.
+2025-06-03 00:52:53 - Executando verificações de saúde dos serviços...
+2025-06-03 00:52:53 - Verificando saúde do serviço: nginx-auth...
+2025-06-03 00:52:53 - Serviço nginx-auth ainda não está saudável (Status: starting). Tentando novamente em 2 segundos... (1/30)
+2025-06-03 00:52:55 - Serviço nginx-auth ainda não está saudável (Status: starting). Tentando novamente em 2 segundos... (2/30)

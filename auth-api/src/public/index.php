@@ -4,14 +4,22 @@ require '/app/vendor/autoload.php';
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 
+// ✅ Carregar .env da raiz do projeto
+$dotenvPath = dirname(__DIR__) . '/.env';
+if (file_exists($dotenvPath)) {
+    Dotenv\Dotenv::createImmutable(dirname(__DIR__))->load();
+}
+
 header('Content-Type: application/json');
 
+// ✅ Configuração via variáveis de ambiente (.env na raiz)
 $host = getenv('DB_HOST') ?: 'db';
-$dbname = getenv('DB_NAME') ?: 'mydb';
+$dbname = getenv('DB_NAME') ?: 'messagedb';
 $dbUser = getenv('DB_USER') ?: 'user';
 $dbPassword = getenv('DB_PASS') ?: 'password';
+$jwtSecret = getenv('JWT_SECRET') ?: 'shawarma';
+
 $dsn = "pgsql:host=$host;port=5432;dbname=$dbname";
-$jwtSecret = getenv('JWT_SECRET') ?: 'your_very_secure_secret_key_auth';
 
 try {
     $pdo = new PDO($dsn, $dbUser, $dbPassword);
