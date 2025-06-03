@@ -1,12 +1,14 @@
+# record-api/src/models/message_model.py
 from psycopg2.extras import RealDictCursor
 
 class MessageModel:
     def __init__(self, db_conn):
         self.db = db_conn
 
+    # ---------- INSERT ----------
     def create(self, user_id_send, user_id_receive, message):
         sql = """
-            INSERT INTO messages ("userIdSend", "userIdReceive", message)
+            INSERT INTO messages (useridsend, useridreceive, message)
             VALUES (%s, %s, %s)
             RETURNING id, created_at;
         """
@@ -15,22 +17,26 @@ class MessageModel:
                 cur.execute(sql, (user_id_send, user_id_receive, message))
                 row = cur.fetchone()
             self.db.commit()
-            return {'id': row['id'], 'created_at': row['created_at'].isoformat()}
+            return {
+                'id': row['id'],
+                'created_at': row['created_at'].isoformat()
+            }
         except Exception as e:
             self.db.rollback()
             print(f"[MessageModel.create] {e}")
             return None
 
+    # ---------- READ : por destinatário ----------
     def find_by_user_receive(self, user_id_receive):
         sql = """
-                SELECT id,
-                        "userIdSend"     AS user_id_send,
-                        "userIdReceive"  AS user_id_receive,
-                        message,
-                        created_at
-                    FROM messages
-                    WHERE "userIdReceive" = %s
-                ORDER BY created_at DESC;
+            SELECT id,
+                   useridsend   AS user_id_send,
+                   useridreceive AS user_id_receive,
+                   message,
+                   created_at
+              FROM messages
+             WHERE useridreceive = %s
+          ORDER BY created_at DESC;
         """
         try:
             with self.db.cursor(cursor_factory=RealDictCursor) as cur:
@@ -40,17 +46,18 @@ class MessageModel:
             print(f"[MessageModel.find_by_user_receive] {e}")
             return None
 
+    # ---------- READ : por canal ----------
     def find_by_channel(self, user_id1, user_id2):
         sql = """
-                SELECT id,
-                    "userIdSend"     AS user_id_send,
-                    "userIdReceive"  AS user_id_receive,
-                    message,
-                    created_at
-                FROM messages
-                WHERE ("userIdSend" = %s AND "userIdReceive" = %s)
-                    OR ("userIdSend" = %s AND "userIdReceive" = %s)
-            ORDER BY created_at ASC;
+            SELECT id,
+                   useridsend    AS user_id_send,
+                   useridreceive AS user_id_receive,
+                   message,
+                   created_at
+              FROM messages
+             WHERE (useridsend=%s   AND useridreceive=%s)
+                OR (useridsend=%s   AND useridreceive=%s)
+          ORDER BY created_at ASC;
         """
         try:
             with self.db.cursor(cursor_factory=RealDictCursor) as cur:
