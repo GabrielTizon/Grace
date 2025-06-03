@@ -21,6 +21,8 @@ RUN chown -R www-data:www-data /app
 COPY php-fpm.conf /usr/local/etc/php-fpm.conf
 
 COPY entrypoint.sh /entrypoint.sh
+
+
 RUN chmod +x /entrypoint.sh
 
 EXPOSE 9001
