@@ -19,26 +19,30 @@ SERVICES=(db redis record-api receive-send-api nginx-auth)
 MAX_TRIES=30
 SLEEP=10
 
-for svc in "${SERVICES[@]}"; do
-  echo "Aguardando $svc ficar saudável…"
-  for ((i=1; i<=MAX_TRIES; i++)); do
-    status=$(docker inspect -f '{{.State.Health.Status 2>/dev/null}}' "$svc" || true)
+for service in "${services_to_check[@]}"; do
+  echo "Verificando saúde do serviço: $service..."
+  for ((i=1; i<=30; i++)); do
+    status=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$service" 2>/dev/null || true)
 
-    # se o serviço não tem healthcheck, só verifica se está rodando
-    [[ -z "$status" ]] && status=$(docker inspect -f '{{.State.Running}}' "$svc")
+    # se não houver healthcheck, verificar se está rodando
+    if [[ -z "$status" ]]; then
+      running=$(docker inspect -f '{{.State.Running}}' "$service")
+      [[ "$running" == "true" ]] && status="running"
+    fi
 
-    if [[ "$status" == "healthy" || "$status" == "true" ]]; then
-      echo "→ $svc OK"
+    if [[ "$status" == "healthy" || "$status" == "running" ]]; then
+      echo "→ $service OK"
       break
     fi
 
-    if (( i == MAX_TRIES )); then
-      echo "‼ $svc não ficou saudável (status=$status). Veja docker logs $svc" >&2
+    if (( i == 30 )); then
+      echo "‼ $service não ficou saudável (status=$status)"
       exit 1
     fi
-    sleep "$SLEEP"
+    sleep 2
   done
 done
+
 
 echo "Todos os serviços estão prontos."
 
