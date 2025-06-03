@@ -1,24 +1,33 @@
-########################################
-#  Record-API – Dockerfile (DEV)
-########################################
-FROM python:3.12-slim
+FROM php:8.3-fpm
+
+RUN apt-get update && apt-get install -y \
+    libpq-dev \
+    git \
+    libzip-dev \
+    postgresql-client \
+    && docker-php-ext-install pdo pdo_pgsql zip \
+    && pecl install redis \
+    && docker-php-ext-enable redis \
+    && curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
 WORKDIR /app
 
-# ── dependências de sistema p/ psycopg2
-RUN apt-get update && \
-    apt-get install -y gcc libpq-dev && \
-    rm -rf /var/lib/apt/lists/*
+COPY composer.json .
+RUN composer install --prefer-dist --no-interaction --optimize-autoloader --verbose || { echo "Composer install failed"; exit 1; }
 
-# ── 1ª camada: requirements.txt (agora no diretório raiz do contexto)
-COPY requirements.txt ./requirements.txt
-RUN pip install --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
-
-# ── 2ª camada: apenas o código-fonte dentro de src/
 COPY src/ .
+RUN chown -R www-data:www-data /app
 
-ENV PYTHONUNBUFFERED=1
-EXPOSE 5000
+COPY php-fpm.conf /usr/local/etc/php-fpm.conf
 
-CMD ["python", "app.py"]
+COPY entrypoint.sh /entrypoint.sh
+
+
+RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
+
+
+RUN chmod +x /entrypoint.sh
+
+EXPOSE 9001
+
+ENTRYPOINT ["/entrypoint.sh"]
