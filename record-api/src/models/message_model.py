@@ -23,10 +23,14 @@ class MessageModel:
 
     def find_by_user_receive(self, user_id_receive):
         sql = """
-            SELECT id, user_id_send, user_id_receive, message, created_at
-            FROM messages
-            WHERE user_id_receive = %s
-            ORDER BY created_at DESC;
+                SELECT id,
+                        "userIdSend"     AS user_id_send,
+                        "userIdReceive"  AS user_id_receive,
+                        message,
+                        created_at
+                    FROM messages
+                    WHERE "userIdReceive" = %s
+                ORDER BY created_at DESC;
         """
         try:
             with self.db.cursor(cursor_factory=RealDictCursor) as cur:
@@ -38,10 +42,14 @@ class MessageModel:
 
     def find_by_channel(self, user_id1, user_id2):
         sql = """
-            SELECT id, user_id_send, user_id_receive, message, created_at
-            FROM messages
-            WHERE (user_id_send=%s AND user_id_receive=%s)
-               OR (user_id_send=%s AND user_id_receive=%s)
+                SELECT id,
+                    "userIdSend"     AS user_id_send,
+                    "userIdReceive"  AS user_id_receive,
+                    message,
+                    created_at
+                FROM messages
+                WHERE ("userIdSend" = %s AND "userIdReceive" = %s)
+                    OR ("userIdSend" = %s AND "userIdReceive" = %s)
             ORDER BY created_at ASC;
         """
         try:
