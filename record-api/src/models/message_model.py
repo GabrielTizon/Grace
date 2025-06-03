@@ -1,52 +1,81 @@
+# record-api/src/models/message_model.py
 from psycopg2.extras import RealDictCursor
+
 
 class MessageModel:
     def __init__(self, db_conn):
         self.db = db_conn
 
-    def create(self, user_id_send, user_id_receive, message):
+    # ------------------------------------------------------------
+    # INSERT
+    # ------------------------------------------------------------
+    def create(self, user_id_send: int | str, user_id_receive: int | str, message: str):
+        """
+        Grava uma mensagem no banco. As colunas useridsend / useridreceive
+        são TEXT, portanto convertemos os IDs para string antes do INSERT.
+        """
         sql = """
-            INSERT INTO messages (user_id_send, user_id_receive, message)
+            INSERT INTO messages (useridsend, useridreceive, message)
             VALUES (%s, %s, %s)
             RETURNING id, created_at;
         """
         try:
             with self.db.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute(sql, (user_id_send, user_id_receive, message))
+                cur.execute(sql, (str(user_id_send), str(user_id_receive), message))
                 row = cur.fetchone()
             self.db.commit()
-            return {'id': row['id'], 'created_at': row['created_at'].isoformat()}
+            return {
+                "id": row["id"],
+                "created_at": row["created_at"].isoformat()
+            }
         except Exception as e:
             self.db.rollback()
             print(f"[MessageModel.create] {e}")
             return None
 
-    def find_by_user_receive(self, user_id_receive):
+    # ------------------------------------------------------------
+    # READ – Todas as mensagens RECEBIDAS por um usuário
+    # ------------------------------------------------------------
+    def find_by_user_receive(self, user_id_receive: int | str):
         sql = """
-            SELECT id, user_id_send, user_id_receive, message, created_at
-            FROM messages
-            WHERE user_id_receive = %s
-            ORDER BY created_at DESC;
+            SELECT id,
+                   useridsend    AS user_id_send,
+                   useridreceive AS user_id_receive,
+                   message,
+                   created_at
+              FROM messages
+             WHERE useridreceive = %s
+          ORDER BY created_at DESC;
         """
         try:
             with self.db.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute(sql, (user_id_receive,))
-                return cur.fetchall()
+                cur.execute(sql, (str(user_id_receive),))
+                return cur.fetchall()          # [] se não houver registros
         except Exception as e:
             print(f"[MessageModel.find_by_user_receive] {e}")
-            return None
+            return None                       # None indica erro interno
 
-    def find_by_channel(self, user_id1, user_id2):
+    # ------------------------------------------------------------
+    # READ – Histórico de um canal (u1  ↔  u2)
+    # ------------------------------------------------------------
+    def find_by_channel(self, user_id1: int | str, user_id2: int | str):
         sql = """
-            SELECT id, user_id_send, user_id_receive, message, created_at
-            FROM messages
-            WHERE (user_id_send=%s AND user_id_receive=%s)
-               OR (user_id_send=%s AND user_id_receive=%s)
-            ORDER BY created_at ASC;
+            SELECT id,
+                   useridsend    AS user_id_send,
+                   useridreceive AS user_id_receive,
+                   message,
+                   created_at
+              FROM messages
+             WHERE (useridsend = %s AND useridreceive = %s)
+                OR (useridsend = %s AND useridreceive = %s)
+          ORDER BY created_at ASC;
         """
         try:
             with self.db.cursor(cursor_factory=RealDictCursor) as cur:
-                cur.execute(sql, (user_id1, user_id2, user_id2, user_id1))
+                cur.execute(
+                    sql,
+                    (str(user_id1), str(user_id2), str(user_id2), str(user_id1))
+                )
                 return cur.fetchall()
         except Exception as e:
             print(f"[MessageModel.find_by_channel] {e}")
