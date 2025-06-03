@@ -1,16 +1,25 @@
 <?php
 require '/app/vendor/autoload.php';
+
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 
+// ✅ Carregar .env da raiz do projeto
+$dotenvPath = dirname(__DIR__) . '/.env';
+if (file_exists($dotenvPath)) {
+    Dotenv\Dotenv::createImmutable(dirname(__DIR__))->load();
+}
+
 header('Content-Type: application/json');
 
+// ✅ Configuração via variáveis de ambiente (.env na raiz)
 $host = getenv('DB_HOST') ?: 'db';
-$dbname = getenv('DB_NAME') ?: 'mydb';
+$dbname = getenv('DB_NAME') ?: 'messagedb';
 $dbUser = getenv('DB_USER') ?: 'user';
 $dbPassword = getenv('DB_PASS') ?: 'password';
+$jwtSecret = getenv('JWT_SECRET') ?: 'shawarma';
+
 $dsn = "pgsql:host=$host;port=5432;dbname=$dbname";
-$jwtSecret = getenv('JWT_SECRET') ?: 'your_very_secure_secret_key_auth';
 
 try {
     $pdo = new PDO($dsn, $dbUser, $dbPassword);
@@ -25,7 +34,7 @@ require_once __DIR__ . '/../Models/UserModel.php';
 $userModel = new \Models\UserModel($pdo);
 
 $input = json_decode(file_get_contents('php://input'), true);
-$uri = $_SERVER['REQUEST_URI'] ?? '/';
+$uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
 function json_response($data, $statusCode = 200) {
@@ -34,177 +43,98 @@ function json_response($data, $statusCode = 200) {
     exit;
 }
 
+// Health Check
 if ($method === 'GET' && $uri === '/health') {
     json_response(['status' => 'OK']);
 }
 
-if ($method === 'GET' && preg_match('#^/token#', $uri)) {
+// Login
+if ($method === 'POST' && $uri === '/token') {
+    if (!isset($input['email'], $input['password'])) {
+        json_response(['error' => 'Email and password required'], 400);
+    }
+
+    $email = $input['email'];
+    $password = $input['password'];
+    $user = $userModel->findByEmail($email);
+
+    if ($user && password_verify($password, $user['password'])) {
+        $payload = [
+            'iss' => "auth-api",
+            'aud' => "microservices-chat",
+            'iat' => time(),
+            'exp' => time() + 3600,
+            'userId' => $user['id'],
+            'email' => $user['email'],
+        ];
+        $jwt = JWT::encode($payload, $jwtSecret, 'HS256');
+        json_response(['token' => $jwt]);
+    } else {
+        json_response(['error' => 'Invalid credentials'], 401);
+    }
+}
+
+// Verifica token de autenticação
+if ($method === 'GET' && $uri === '/token') {
     $userIdentifier = $_GET['userIdentifier'] ?? null;
     $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? null;
 
     if (!$userIdentifier || !$authHeader || !preg_match('/Bearer\s(\S+)/', $authHeader, $matches)) {
         json_response(['auth' => false, 'error' => 'User identifier and token are required'], 401);
     }
-    $token = $matches[1];
 
     try {
-        $decoded = JWT::decode($token, new Key($jwtSecret, 'HS256'));
-        
-        $tokenUserEmail = $decoded->email ?? null;
-        $tokenUserId = $decoded->userId ?? null;
-
-        if (!$tokenUserEmail && !$tokenUserId) {
-            json_response(['auth' => false, 'error' => 'Token does not contain user identifier'], 401);
-        }
-
-        $queriedUser = $userModel->findByEmail($userIdentifier) ?: $userModel->findByUsername($userIdentifier);
-
-        if (!$queriedUser) {
-            json_response(['auth' => false, 'error' => 'Queried user not found'], 401);
-        }
-
-        $tokenMatchesQueryUser = false;
-        if ($tokenUserEmail && $tokenUserEmail === $queriedUser['email']) {
-            $tokenMatchesQueryUser = true;
-        } elseif ($tokenUserId && $tokenUserId === $queriedUser['id']) {
-            $tokenMatchesQueryUser = true;
-        }
-        
-        if ($tokenMatchesQueryUser) {
-            $userFromToken = $tokenUserEmail ? $userModel->findByEmail($tokenUserEmail) : $userModel->findById($tokenUserId);
-            if ($userFromToken) {
-                 json_response(['auth' => true]);
-            } else {
-                 json_response(['auth' => false, 'error' => 'User in token no longer exists'], 401);
-            }
+        $decoded = JWT::decode($matches[1], new Key($jwtSecret, 'HS256'));
+        $user = $userModel->findByEmail($userIdentifier);
+        if ($user && $user['id'] == $decoded->userId) {
+            json_response(['auth' => true]);
         } else {
-            json_response(['auth' => false, 'error' => 'Token does not match the specified user'], 401);
+            json_response(['auth' => false, 'error' => 'Token mismatch or user not found'], 401);
         }
     } catch (Exception $e) {
         json_response(['auth' => false, 'error' => 'Invalid token: ' . $e->getMessage()], 401);
     }
 }
 
-if ($method === 'POST' && preg_match('#^/token#', $uri)) {
-    if (!isset($input['email'], $input['password'])) {
-        json_response(['error' => 'Email and password required'], 400);
+// Cadastro de usuário
+if ($method === 'POST' && $uri === '/user') {
+    if (!isset($input['password'], $input['name'], $input['lastName'], $input['email'])) {
+        json_response(['error' => 'Password, name, lastName, and email required'], 400);
     }
-    $email = $input['email'];
-    $password = $input['password'];
 
-    try {
-        $user = $userModel->findByEmail($email);
-
-        if ($user && password_verify($password, $user['password'])) {
-            $payload = [
-                'iss' => "auth-api",
-                'aud' => "microservices-chat",
-                'iat' => time(),
-                'exp' => time() + 3600,
-                'userId' => $user['id'],
-                'email' => $user['email'],
-            ];
-            $jwt = JWT::encode($payload, $jwtSecret, 'HS256');
-            json_response(['token' => $jwt]);
-        } else {
-            json_response(['token' => false], 401);
-        }
-    } catch (PDOException $e) {
-        json_response(['error' => 'Database error: ' . $e->getMessage()], 500);
-    }
-}
-
-if ($method === 'POST' && preg_match('#^/user#', $uri)) {
-    if (!isset($input['username'], $input['password'], $input['name'], $input['lastName'], $input['email'])) {
-        json_response(['error' => 'Username, password, name, lastName, and email required'], 400);
-    }
-    $username = $input['username'];
     $hashedPassword = password_hash($input['password'], PASSWORD_BCRYPT);
-    $name = $input['name'];
-    $lastName = $input['lastName'];
-    $email = $input['email'];
 
     try {
-        $newUserId = $userModel->create($username, $hashedPassword, $name, $lastName, $email);
-        if ($newUserId) {
-            $createdUser = $userModel->findById($newUserId);
-            unset($createdUser['password']);
-            json_response([
-                'message' => 'ok',
-                'user' => [
-                    'id' => $createdUser['id'],
-                    'username' => $createdUser['username'],
-                    'name' => $createdUser['name'],
-                    'lastName' => $createdUser['lastName'],
-                    'email' => $createdUser['email']
-                ]
-            ], 201);
-        } else {
-            json_response(['error' => 'Registration failed'], 400);
-        }
+        $userId = $userModel->create($hashedPassword, $input['name'], $input['lastName'], $input['email']);
+        $user = $userModel->findById($userId);
+        unset($user['password']);
+        json_response(['message' => 'ok', 'user' => $user], 201);
     } catch (PDOException $e) {
-        if (strpos($e->getMessage(), 'duplicate key') !== false || strpos($e->getMessage(), 'UniqueViolation') !== false) {
-            json_response(['error' => 'Username or email already exists'], 400);
-        } else {
-            json_response(['error' => 'Database error during registration: ' . $e->getMessage()], 500);
+        if (strpos($e->getMessage(), 'duplicate') !== false) {
+            json_response(['error' => 'Email already exists'], 400);
         }
-    }
-}
-
-if ($method === 'GET' && preg_match('#^/user#', $uri)) {
-    $email = $_GET['email'] ?? null;
-    if (!$email) {
-        if (isset($_GET['all']) && $_GET['all'] === 'true') {
-            try {
-                $users = $userModel->getAllUsers();
-                json_response($users);
-            } catch (PDOException $e) {
-                json_response(['error' => 'Database error: ' . $e->getMessage()], 500);
-            }
-        } else {
-            json_response(['error' => 'Email query parameter is required'], 400);
-        }
-    }
-
-    try {
-        $user = $userModel->findByEmail($email);
-        if ($user) {
-            json_response([
-                'id' => $user['id'],
-                'username' => $user['username'],
-                'name' => $user['name'],
-                'lastName' => $user['lastName'],
-                'email' => $user['email']
-            ]);
-        } else {
-            json_response(['error' => 'User not found'], 404);
-        }
-    } catch (PDOException $e) {
         json_response(['error' => 'Database error: ' . $e->getMessage()], 500);
     }
 }
 
-if ($method === 'GET' && preg_match('#^/users/([\w.-]+@[\w.-]+\.\w+)$#', $uri, $matches)) { // Find by email via path
-    $email = $matches[1];
-    $user = $userModel->findByEmail($email);
+// Listar usuários
+if ($method === 'GET' && $uri === '/user') {
+    if (isset($_GET['all']) && $_GET['all'] === 'true') {
+        $users = $userModel->getAllUsers();
+        json_response($users);
+    }
+
+    if (!isset($_GET['email'])) {
+        json_response(['error' => 'Email query parameter is required'], 400);
+    }
+
+    $user = $userModel->findByEmail($_GET['email']);
     if ($user) {
         unset($user['password']);
         json_response($user);
     } else {
-        json_response(['error' => 'User not found by email in path'], 404);
-    }
-} elseif ($method === 'GET' && preg_match('#^/users/([\w-]+)$#', $uri, $matches)) { // Find by username via path
-    $username = $matches[1];
-    $user = $userModel->findByUsername($username);
-    if ($user) {
-        unset($user['password']);
-        json_response($user);
-    } else {
-        json_response(['error' => 'User not found by username in path'], 404);
+        json_response(['error' => 'User not found'], 404);
     }
 }
 
-
-if (!headers_sent()) {
-    json_response(['error' => 'Endpoint not found', 'uri_debug' => $uri, 'method_debug' => $method], 404);
-}
+json_response(['error' => 'Endpoint not found'], 404);

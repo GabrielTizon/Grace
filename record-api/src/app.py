@@ -1,27 +1,40 @@
 from flask import Flask, jsonify, request
-import os, redis, psycopg2
+import os
+import redis
+import psycopg2
+from dotenv import load_dotenv, find_dotenv
 from models.message_model import MessageModel
 from services.message_service import MessageService
+
+load_dotenv(find_dotenv())
 
 app = Flask(__name__)
 
 # ---------- Conexão PostgreSQL ----------
-db_connection = psycopg2.connect(
-    dbname=os.getenv('DB_NAME', 'chatdb'),
-    user=os.getenv('DB_USER', 'chatuser'),
-    password=os.getenv('DB_PASS', 'secret'),
-    host=os.getenv('DB_HOST', 'localhost'),
-    port=os.getenv('DB_PORT', '5432')
-)
+try:
+    db_connection = psycopg2.connect(
+        dbname=os.getenv('DB_NAME', 'messagedb'),
+        user=os.getenv('DB_USER', 'user'),
+        password=os.getenv('DB_PASS', 'password'),
+        host=os.getenv('DB_HOST', 'localhost'),
+        port=os.getenv('DB_PORT', '5432')
+    )
+except Exception as e:
+    print(f"❌ Falha ao conectar ao PostgreSQL: {e}")
+    raise
 
 # ---------- Conexão Redis ----------
-redis_client = redis.Redis(
-    host=os.getenv('REDIS_HOST', 'localhost'),
-    port=6379,
-    decode_responses=False,      # bytes -> você decodifica no service
-    retry_on_timeout=True
-)
-redis_client.ping()
+try:
+    redis_client = redis.Redis(
+        host=os.getenv('REDIS_HOST', 'localhost'),
+        port=int(os.getenv('REDIS_PORT', 6379)),
+        decode_responses=False,
+        retry_on_timeout=True
+    )
+    redis_client.ping()
+except Exception as e:
+    print(f"❌ Falha ao conectar ao Redis: {e}")
+    raise
 
 # ---------- Instâncias de Model / Service ----------
 message_model = MessageModel(db_connection)
@@ -64,4 +77,4 @@ def messages_for_channel(u1, u2):
     return jsonify({'messages': rows}), 200
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=int(os.getenv('PORT', 5000)))
