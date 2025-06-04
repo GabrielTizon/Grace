@@ -1,5 +1,6 @@
 require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
 
+
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const redis = require('redis');

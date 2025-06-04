@@ -1,14 +1,15 @@
-FROM node:20.17
+# receive-send-api/Dockerfile
+FROM node:20-alpine
 
 WORKDIR /app
-COPY src/ .
-COPY package.json .
 
-RUN npm install
+# 1. dependências
+COPY package*.json ./
+RUN npm ci          # já instala amqplib listado em package.json
+
+# 2. código-fonte
+COPY src/ ./src
 
 EXPOSE 3000
 
-HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:3000/health || exit 1
-
-CMD ["node", "index.js"]
+CMD ["node", "src/index.js"]

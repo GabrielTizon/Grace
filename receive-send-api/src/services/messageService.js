@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
+const { getChannel } = require('../rabbit');
 
 const AUTH_API_BASE_URL = process.env.AUTH_API_URL || 'http://nginx-auth:80';
 const RECORD_API_BASE_URL = process.env.RECORD_API_URL || 'http://record-api:5000';
@@ -60,21 +61,17 @@ class MessageService {
     }
 
     async sendMessageToQueue(userIdSend, userIdReceive, message) {
-        const queueName = `queue:${userIdSend}_${userIdReceive}`;
-        const messageData = {
-            userIdSend,
-            userIdReceive,
-            message,
-            timestamp: new Date().toISOString()
-        };
-        try {
-            await this.redisClient.lPush(queueName, JSON.stringify(messageData));
-            console.log(`Message pushed to Redis queue ${queueName}`);
-            return { success: true, message: 'Message enqueued' };
-        } catch (error) {
-            console.error(`Error sending message to Redis queue ${queueName}:`, error);
-            return { success: false, error: 'Failed to enqueue message' };
-        }
+    try {
+        const ch = await getChannel();
+        const queue = `channel.${userIdSend}.${userIdReceive}`;
+        await ch.assertQueue(queue, { durable: true });
+        const payload = Buffer.from(JSON.stringify({ userIdSend, userIdReceive, message }));
+        ch.sendToQueue(queue, payload, { persistent: true });
+        return { success: true };
+    } catch (err) {
+        console.error('RabbitMQ publish error:', err);
+        return { success: false, error: err.message };
+    }
     }
 
     async processMessagesFromQueueToDB(userIdSend, userIdReceive) {
