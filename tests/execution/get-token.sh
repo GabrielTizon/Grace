@@ -16,13 +16,13 @@ curl -H "Authorization: Bearer $TOK1" \
      "localhost:9003/token?userIdentifier=user1@mail.com"
 
 curl -H "Authorization: Bearer $TOK2" \
-     "localhost:9003/token?userIdentifier=user1@mail.com"
+     "localhost:9003/token?userIdentifier=user2@mail.com"
 
 curl -H "Authorization: Bearer $TOK3" \
-     "localhost:9003/token?userIdentifier=user1@mail.com"
+     "localhost:9003/token?userIdentifier=user3@mail.com"
 
 curl -H "Authorization: Bearer $TOK4" \
-     "localhost:9003/token?userIdentifier=user1@mail.com"
+     "localhost:9003/token?userIdentifier=user4@mail.com"
 
 
 # Exporta para os próximos scripts
