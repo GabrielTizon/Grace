@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
 const { getChannel } = require('../rabbit');
+const { getUserId } = require('./userResolver');
 
 const AUTH_API_BASE_URL = process.env.AUTH_API_URL || 'http://nginx-auth:80';
 const RECORD_API_BASE_URL = process.env.RECORD_API_URL || 'http://record-api:5000';
@@ -60,7 +61,12 @@ class MessageService {
         }
     }
 
-    async sendMessageToQueue(userIdSend, userIdReceive, message) {
+    async sendMessageToQueue(userIdSendRaw, userIdReceiveRaw, message, token) {
+    // converte e-mail → id numérico
+    const userIdSend    = await getUserId(userIdSendRaw,    token);
+    const userIdReceive = await getUserId(userIdReceiveRaw, token);
+
+  const queue = `channel.${userIdSend}.${userIdReceive}`;
     try {
         const ch = await getChannel();
         const queue = `channel.${userIdSend}.${userIdReceive}`;
