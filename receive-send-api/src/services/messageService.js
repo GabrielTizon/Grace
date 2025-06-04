@@ -62,6 +62,10 @@ class MessageService {
     }
 
     async sendMessageToQueue(userIdSendRaw, userIdReceiveRaw, message, token) {
+    const ch = await getChannel();
+    await ch.assertExchange('chat', 'topic', { durable: true });
+    const routingKey = `channel.${idSend}.${idReceive}`;
+    ch.publish('chat', routingKey, Buffer.from(JSON.stringify(payload)), { persistent: true });    
     // converte e-mail → id numérico
     const userIdSend    = await getUserId(userIdSendRaw,    token);
     const userIdReceive = await getUserId(userIdReceiveRaw, token);
