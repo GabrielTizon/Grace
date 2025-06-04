@@ -4,13 +4,12 @@ const { getChannel } = require('./rabbit');
 
 (async () => {
   const ch = await getChannel();
-  ch.prefetch(10);                              // carrega 10 por vez
+  ch.prefetch(10);
 
-  // Consumir *todas* as filas do padrão channel.*
-  const queues = await ch.assertQueue('', { exclusive: true });
-  await ch.bindQueue(queues.queue, 'amq.rabbitmq.log', 'channel.*'); // workaround para não criar exchange extra
+  // Lista de filas que você quer consumir; para demo coloque as que existem
+  const channels = ['channel.1.4', 'channel.4.3', 'channel.2.1'];
 
-  const consumeQueue = async (queue) => {
+  for (const queue of channels) {
     await ch.assertQueue(queue, { durable: true });
     ch.consume(queue, async (msg) => {
       if (!msg) return;
@@ -18,15 +17,11 @@ const { getChannel } = require('./rabbit');
       try {
         await axios.post('http://record-api:5000/message', data);
         ch.ack(msg);
-      } catch (e) {
-        console.error('Erro gravando em Record-API:', e.message);
-        ch.nack(msg, false, true);              // requeue
+      } catch (err) {
+        console.error('Erro ao gravar:', err.message);
+        ch.nack(msg, false, true);          // devolve à fila
       }
     });
-  };
-
-  // Descobre quais filas existem no broker e começa a consumir
-  const res = await ch.checkQueue('channel.1.4').catch(() => null);
-  // Para demo: consuma as filas conforme necessário
-  await consumeQueue('channel.1.4');
+    console.log(`Consumindo ${queue}`);
+  }
 })();
