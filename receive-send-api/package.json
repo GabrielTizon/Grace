@@ -1,15 +1,16 @@
 {
   "name": "receive-send-api",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "src/index.js",           
   "scripts": {
-    "start": "node index.js"
+    "start": "node src/index.js"
   },
   "dependencies": {
     "express": "^4.18.2",
     "jsonwebtoken": "^9.0.2",
     "redis": "^4.6.10",
     "axios": "^1.9.0",
-    "dotenv": "^16.3.1"
+    "dotenv": "^16.3.1",
+    "amqplib": "^0.10.3"
   }
 }

@@ -1,5 +1,6 @@
 require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
 
+
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const redis = require('redis');
@@ -62,7 +63,7 @@ app.post('/message', async (req, res) => {
         return res.status(401).json({ msg: 'not auth', error: 'Token validation failed or user mismatch' });
     }
 
-    const enqueueResult = await messageService.sendMessageToQueue(userIdSend, userIdReceive, message);
+    const enqueueResult = await messageService.sendMessageToQueue(userIdSend, userIdReceive, message, token);
     if (!enqueueResult.success) {
         return res.status(500).json({ error: 'Failed to enqueue message', details: enqueueResult.error });
     }

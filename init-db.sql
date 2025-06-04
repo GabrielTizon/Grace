@@ -9,9 +9,6 @@ CREATE TABLE users (
     email VARCHAR(255) UNIQUE NOT NULL
 );
 
-INSERT INTO users (password, email, name, lastName) 
-VALUES ('$2y$10$xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', 'admin@example.com', 'Admin', 'User');
-
 CREATE TABLE IF NOT EXISTS messages (
     id SERIAL PRIMARY KEY,
     userIdSend TEXT NOT NULL,

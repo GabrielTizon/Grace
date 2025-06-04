@@ -1,114 +1,126 @@
-const jwt = require('jsonwebtoken');
-const axios = require('axios');
+// receive-send-api/src/services/messageService.js
 
-const AUTH_API_BASE_URL = process.env.AUTH_API_URL || 'http://nginx-auth:80';
-const RECORD_API_BASE_URL = process.env.RECORD_API_URL || 'http://record-api:5000';
+const axios = require('axios');
+const { getChannel } = require('../rabbit');
+const { getUserId } = require('./userResolver');
+
+const AUTH_API_BASE_URL   = process.env.AUTH_API_URL   || 'http://nginx-auth';
+const RECORD_API_BASE_URL = process.env.RECORD_API_BASE_URL || 'http://record-api:5000';
 
 class MessageService {
-    constructor(redisClient) {
-        this.redisClient = redisClient;
-        this.jwtSecret = process.env.JWT_SECRET || 'your_fallback_secret_key_receive_send';
+  constructor(redisClient) {
+    this.redisClient = redisClient;
+  }
+
+  /* ----------------------------------------------------------
+     1) Verificar token JWT junto à Auth-API
+  ---------------------------------------------------------- */
+  async verifyTokenWithAuthAPI(token, userIdentifier) {
+    if (!token || !userIdentifier) return false;
+    try {
+      const { data } = await axios.get(`${AUTH_API_BASE_URL}/token`, {
+        headers: { Authorization: `Bearer ${token}` },
+        params: { userIdentifier }
+      });
+      return data?.auth === true;
+    } catch (e) {
+      console.error('Auth-API verify error:', e.response?.data || e.message);
+      return false;
+    }
+  }
+
+  /* ----------------------------------------------------------
+     2) Buscar todos os usuários na Auth-API (GET /user?all=true)
+     → Retorna um array [{ id, name, lastName, email, ...}, …]
+  ---------------------------------------------------------- */
+  async getAllUsersFromAuthAPI(token) {
+    if (!token) return null;
+    try {
+      const response = await axios.get(`${AUTH_API_BASE_URL}/user?all=true`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return response.data;  // espera que seja um array de usuários
+    } catch (error) {
+      console.error('Error fetching all users from Auth-API:', 
+                    error.response?.data || error.message);
+      return null;
+    }
+  }
+
+  /* ----------------------------------------------------------
+     3) Buscar mensagens de um canal específico via Record-API
+     → GET /messages_for_channel/:user1/:user2
+  ---------------------------------------------------------- */
+    async getMessagesFromRecordAPIForChannel(userIdRaw1, userIdRaw2, token) {
+      try {
+        // converte e-mail → id numérico
+        const id1 = await getUserId(userIdRaw1, token);
+        const id2 = await getUserId(userIdRaw2, token);
+
+        const { data } = await axios.get(
+          `${RECORD_API_BASE_URL}/messages_for_channel/${id1}/${id2}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        return data.messages || [];
+      } catch (error) {
+        console.error(
+          `Record-API channel ${userIdRaw1}-${userIdRaw2} error:`,
+          error.response?.data || error.message
+        );
+        return [];
+      }
     }
 
-    async verifyTokenWithAuthAPI(token, userIdentifier) {
-        if (!token || !userIdentifier) return false;
-        try {
-            const response = await axios.get(`${AUTH_API_BASE_URL}/token`, {
-                headers: { 'Authorization': `Bearer ${token}` },
-                params: { 'userIdentifier': userIdentifier }
-            });
-            return response.data && response.data.auth === true;
-        } catch (error) {
-            console.error('Error verifying token with Auth-API:', error.response ? error.response.data : error.message);
-            return false;
-        }
-    }
+  /* ----------------------------------------------------------
+     4) Enfileirar mensagem no RabbitMQ (tópico “chat” / routing-key channel.X.Y)
+     → Converte e-mail (ou string) → ID numérico em Auth-API
+  ---------------------------------------------------------- */
+  async sendMessageToQueue(userIdSendRaw, userIdReceiveRaw, message, token) {
+    // Primeiro converte o userIdentifier (string) para id numérico
+    const userIdSend    = await getUserId(userIdSendRaw, token);
+    const userIdReceive = await getUserId(userIdReceiveRaw, token);
 
-    async recordMessageWithRecordAPI(userIdSend, userIdReceive, message) {
-        try {
-            const payload = { userIdSend, userIdReceive, message };
-            const response = await axios.post(`${RECORD_API_BASE_URL}/message`, payload);
-            return response.status === 201 && response.data && response.data.ok === true;
-        } catch (error) {
-            console.error('Error recording message with Record-API:', error.response ? error.response.data : error.message);
-            return false;
-        }
-    }
-    
-    async getAllUsersFromAuthAPI(token) {
-        try {
-            const response = await axios.get(`${AUTH_API_BASE_URL}/user?all=true`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            return response.data;
-        } catch (error) {
-            console.error('Error fetching all users from Auth-API:', error.response ? error.response.data : error.message);
-            return null;
-        }
-    }
+    const payload    = { userIdSend, userIdReceive, message };
+    const routingKey = `channel.${userIdSend}.${userIdReceive}`;
 
-    async getMessagesFromRecordAPIForChannel(user1, user2, token) {
-        try {
-            const response = await axios.get(`${RECORD_API_BASE_URL}/messages_for_channel/${user1}/${user2}`, {
-                 headers: { 'Authorization': `Bearer ${token}` }
-            });
-            return response.data.messages || [];
-        } catch (error) {
-            console.error(`Error fetching messages for channel ${user1}-${user2} from Record-API:`, error.response ? error.response.data : error.message);
-            return [];
-        }
+    try {
+      const ch = await getChannel();
+      await ch.assertExchange('chat', 'topic', { durable: true });
+      ch.publish('chat', routingKey, Buffer.from(JSON.stringify(payload)), {
+        persistent: true
+      });
+      console.log(`📤 RabbitMQ publish → ${routingKey}`);
+      return { success: true };
+    } catch (err) {
+      console.error('RabbitMQ publish error:', err);
+      return { success: false, error: err.message };
     }
+  }
 
-    async sendMessageToQueue(userIdSend, userIdReceive, message) {
-        const queueName = `queue:${userIdSend}_${userIdReceive}`;
-        const messageData = {
-            userIdSend,
-            userIdReceive,
-            message,
-            timestamp: new Date().toISOString()
-        };
-        try {
-            await this.redisClient.lPush(queueName, JSON.stringify(messageData));
-            console.log(`Message pushed to Redis queue ${queueName}`);
-            return { success: true, message: 'Message enqueued' };
-        } catch (error) {
-            console.error(`Error sending message to Redis queue ${queueName}:`, error);
-            return { success: false, error: 'Failed to enqueue message' };
-        }
+  /* ----------------------------------------------------------
+     5) (LEGADO) Processar fila Redis e enviar para Record-API
+     → Esse método é usado pelo endpoint POST /message/worker
+  ---------------------------------------------------------- */
+  async processMessagesFromQueueToDB(userIdSend, userIdReceive) {
+    const queueName = `queue:${userIdSend}_${userIdReceive}`;
+    let processed = 0;
+    try {
+      while (true) {
+        const raw = await this.redisClient.rPop(queueName);
+        if (!raw) break;
+        const msgObj = JSON.parse(raw);
+        const resp = await axios.post(
+          `${RECORD_API_BASE_URL}/message`,
+          msgObj
+        );
+        if (resp.status === 201) processed++;
+      }
+      return { success: true, message: `Processed ${processed} messages` };
+    } catch (e) {
+      console.error('Error in processMessagesFromQueueToDB:', e.message);
+      return { success: false, error: e.message };
     }
-
-    async processMessagesFromQueueToDB(userIdSend, userIdReceive) {
-        const queueName = `queue:${userIdSend}_${userIdReceive}`;
-        let processedCount = 0;
-        try {
-            while (true) {
-                const rawMessageData = await this.redisClient.rPop(queueName);
-                if (!rawMessageData) {
-                    break;
-                }
-                const messageData = JSON.parse(rawMessageData);
-                
-                const recorded = await this.recordMessageWithRecordAPI(
-                    messageData.userIdSend,
-                    messageData.userIdReceive,
-                    messageData.message
-                );
-
-                if (recorded) {
-                    processedCount++;
-                    console.log(`Message from ${messageData.userIdSend} to ${messageData.userIdReceive} moved to DB.`);
-                } else {
-                    console.error(`Failed to record message ${JSON.stringify(messageData)} to DB. Re-queuing.`);
-                    await this.redisClient.lPush(queueName, rawMessageData); 
-                    break; 
-                }
-            }
-            return { success: true, message: `Processed ${processedCount} messages from queue ${queueName}.` };
-        } catch (error) {
-            console.error(`Error processing queue ${queueName}:`, error);
-            return { success: false, error: `Failed to process queue ${queueName}.` };
-        }
-    }
+  }
 }
 
 module.exports = MessageService;

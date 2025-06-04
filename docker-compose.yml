@@ -13,7 +13,7 @@ services:
     expose:
       - "9001"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://nginx/health"]
+      test: ["CMD", "sh", "-c", "php-fpm -t >/dev/null"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -61,8 +61,7 @@ services:
     networks:
       - app-network
     depends_on:
-      redis:
-        condition: service_healthy
+      redis: { condition: service_healthy }
     env_file: .env
     ports:
       - "3000:3000"
@@ -71,6 +70,17 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+
+  receive-send-worker:
+    build: ./receive-send-api
+    container_name: rs-worker
+    command: ["node", "src/worker.js"]
+    networks:
+      - app-network
+    depends_on:
+      rabbitmq: { condition: service_healthy }
+      record-api: { condition: service_healthy }
+    env_file: .env
 
   db:
     image: postgres:16.4
@@ -101,6 +111,23 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3.13-management   # traz UI na porta 15672
+    container_name: rabbitmq
+    networks:
+      - app-network
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"     # protocolo AMQP
+      - "15672:15672"   # interface web
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 networks:
   app-network:
