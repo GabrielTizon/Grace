@@ -5,7 +5,7 @@ WORKDIR /app
 
 # 1. dependências
 COPY package*.json ./
-RUN npm ci          # já instala amqplib listado em package.json
+RUN npm install
 
 # 2. código-fonte
 COPY src/ ./src
