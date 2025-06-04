@@ -51,22 +51,25 @@ class MessageService {
      3) Buscar mensagens de um canal específico via Record-API
      → GET /messages_for_channel/:user1/:user2
   ---------------------------------------------------------- */
-  async getMessagesFromRecordAPIForChannel(user1, user2, token) {
-    if (!token) return [];
-    try {
-      const response = await axios.get(
-        `${RECORD_API_BASE_URL}/messages_for_channel/${user1}/${user2}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      return response.data.messages || [];
-    } catch (error) {
-      console.error(
-        `Error fetching messages for channel ${user1}-${user2} from Record-API:`,
-        error.response?.data || error.message
-      );
-      return [];
+    async getMessagesFromRecordAPIForChannel(userIdRaw1, userIdRaw2, token) {
+      try {
+        // converte e-mail → id numérico
+        const id1 = await getUserId(userIdRaw1, token);
+        const id2 = await getUserId(userIdRaw2, token);
+
+        const { data } = await axios.get(
+          `${RECORD_API_BASE_URL}/messages_for_channel/${id1}/${id2}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        return data.messages || [];
+      } catch (error) {
+        console.error(
+          `Record-API channel ${userIdRaw1}-${userIdRaw2} error:`,
+          error.response?.data || error.message
+        );
+        return [];
+      }
     }
-  }
 
   /* ----------------------------------------------------------
      4) Enfileirar mensagem no RabbitMQ (tópico “chat” / routing-key channel.X.Y)
