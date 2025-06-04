@@ -1,6 +1,10 @@
 # receive-send-api/Dockerfile
 FROM node:20-alpine
 
+RUN apt-get update && \
+    apt-get install -y gcc libpq-dev curl && \
+    rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 # 1. dependências
