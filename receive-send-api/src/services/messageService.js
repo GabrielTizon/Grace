@@ -1,30 +1,26 @@
-/* ---------------------------------------------------------------
-   MessageService  –  Receive-Send-API
-   • Verifica JWT na Auth-API
-   • Converte e-mail  → id numérico  (via userResolver)
-   • Publica na exchange “chat” (topic) com routing-key channel.<idSend>.<idReceive>
-   • (opcional) método legado para Redis / endpoint /message/worker
----------------------------------------------------------------- */
+// receive-send-api/src/services/messageService.js
 
 const axios = require('axios');
 const { getChannel } = require('../rabbit');
 const { getUserId } = require('./userResolver');
 
 const AUTH_API_BASE_URL   = process.env.AUTH_API_URL   || 'http://nginx-auth';
-const RECORD_API_BASE_URL = process.env.RECORD_API_URL || 'http://record-api:5000';
+const RECORD_API_BASE_URL = process.env.RECORD_API_BASE_URL || 'http://record-api:5000';
 
 class MessageService {
   constructor(redisClient) {
-    this.redisClient = redisClient;                // usado só pelo método legado
+    this.redisClient = redisClient;
   }
 
-  /* -------------------------------------------------- JWT check */
+  /* ----------------------------------------------------------
+     1) Verificar token JWT junto à Auth-API
+  ---------------------------------------------------------- */
   async verifyTokenWithAuthAPI(token, userIdentifier) {
     if (!token || !userIdentifier) return false;
     try {
       const { data } = await axios.get(`${AUTH_API_BASE_URL}/token`, {
         headers: { Authorization: `Bearer ${token}` },
-        params : { userIdentifier }
+        params: { userIdentifier }
       });
       return data?.auth === true;
     } catch (e) {
@@ -33,33 +29,75 @@ class MessageService {
     }
   }
 
-  /* -------------------------------------------------- Enfileirar */
-  async sendMessageToQueue(userIdSendRaw, userIdReceiveRaw, message, token) {
-    /* 1. e-mail (ou string) → id numérico */
-    const userIdSend    = await getUserId(userIdSendRaw,    token);   // ex.: 2
-    const userIdReceive = await getUserId(userIdReceiveRaw, token);   // ex.: 5
+  /* ----------------------------------------------------------
+     2) Buscar todos os usuários na Auth-API (GET /user?all=true)
+     → Retorna um array [{ id, name, lastName, email, ...}, …]
+  ---------------------------------------------------------- */
+  async getAllUsersFromAuthAPI(token) {
+    if (!token) return null;
+    try {
+      const response = await axios.get(`${AUTH_API_BASE_URL}/user?all=true`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return response.data;  // espera que seja um array de usuários
+    } catch (error) {
+      console.error('Error fetching all users from Auth-API:', 
+                    error.response?.data || error.message);
+      return null;
+    }
+  }
 
-    /* 2. payload + routing-key */
+  /* ----------------------------------------------------------
+     3) Buscar mensagens de um canal específico via Record-API
+     → GET /messages_for_channel/:user1/:user2
+  ---------------------------------------------------------- */
+  async getMessagesFromRecordAPIForChannel(user1, user2, token) {
+    if (!token) return [];
+    try {
+      const response = await axios.get(
+        `${RECORD_API_BASE_URL}/messages_for_channel/${user1}/${user2}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      return response.data.messages || [];
+    } catch (error) {
+      console.error(
+        `Error fetching messages for channel ${user1}-${user2} from Record-API:`,
+        error.response?.data || error.message
+      );
+      return [];
+    }
+  }
+
+  /* ----------------------------------------------------------
+     4) Enfileirar mensagem no RabbitMQ (tópico “chat” / routing-key channel.X.Y)
+     → Converte e-mail (ou string) → ID numérico em Auth-API
+  ---------------------------------------------------------- */
+  async sendMessageToQueue(userIdSendRaw, userIdReceiveRaw, message, token) {
+    // Primeiro converte o userIdentifier (string) para id numérico
+    const userIdSend    = await getUserId(userIdSendRaw, token);
+    const userIdReceive = await getUserId(userIdReceiveRaw, token);
+
     const payload    = { userIdSend, userIdReceive, message };
     const routingKey = `channel.${userIdSend}.${userIdReceive}`;
 
     try {
-      /* 3. publish na exchange topic “chat” */
       const ch = await getChannel();
       await ch.assertExchange('chat', 'topic', { durable: true });
       ch.publish('chat', routingKey, Buffer.from(JSON.stringify(payload)), {
         persistent: true
       });
-
-      console.log(`📤 Rabbit publish → ${routingKey}`);
+      console.log(`📤 RabbitMQ publish → ${routingKey}`);
       return { success: true };
     } catch (err) {
-      console.error('Rabbit publish error:', err);
+      console.error('RabbitMQ publish error:', err);
       return { success: false, error: err.message };
     }
   }
 
-  /* -------------------------------------- (legado) Redis → RecordAPI */
+  /* ----------------------------------------------------------
+     5) (LEGADO) Processar fila Redis e enviar para Record-API
+     → Esse método é usado pelo endpoint POST /message/worker
+  ---------------------------------------------------------- */
   async processMessagesFromQueueToDB(userIdSend, userIdReceive) {
     const queueName = `queue:${userIdSend}_${userIdReceive}`;
     let processed = 0;
@@ -67,12 +105,16 @@ class MessageService {
       while (true) {
         const raw = await this.redisClient.rPop(queueName);
         if (!raw) break;
-        const msg = JSON.parse(raw);
-        const resp = await axios.post(`${RECORD_API_BASE_URL}/message`, msg);
+        const msgObj = JSON.parse(raw);
+        const resp = await axios.post(
+          `${RECORD_API_BASE_URL}/message`,
+          msgObj
+        );
         if (resp.status === 201) processed++;
       }
-      return { success: true, message: `Processed ${processed}` };
+      return { success: true, message: `Processed ${processed} messages` };
     } catch (e) {
+      console.error('Error in processMessagesFromQueueToDB:', e.message);
       return { success: false, error: e.message };
     }
   }
