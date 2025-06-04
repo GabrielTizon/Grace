@@ -1,3 +1,11 @@
+/* ---------------------------------------------------------------
+   MessageService  –  Receive-Send-API
+   • Verifica JWT na Auth-API
+   • Converte e-mail  → id numérico  (via userResolver)
+   • Publica na exchange “chat” (topic) com routing-key channel.<idSend>.<idReceive>
+   • (opcional) método legado para Redis / endpoint /message/worker
+---------------------------------------------------------------- */
+
 const axios = require('axios');
 const { getChannel } = require('../rabbit');
 const { getUserId } = require('./userResolver');
@@ -7,12 +15,10 @@ const RECORD_API_BASE_URL = process.env.RECORD_API_URL || 'http://record-api:500
 
 class MessageService {
   constructor(redisClient) {
-    this.redisClient = redisClient;                 // só usado em /worker legado
+    this.redisClient = redisClient;                // usado só pelo método legado
   }
 
-  /* -------------------------------------------------------------------- */
-  /*  TOKEN → Auth-API                                                    */
-  /* -------------------------------------------------------------------- */
+  /* -------------------------------------------------- JWT check */
   async verifyTokenWithAuthAPI(token, userIdentifier) {
     if (!token || !userIdentifier) return false;
     try {
@@ -27,41 +33,33 @@ class MessageService {
     }
   }
 
-  /* -------------------------------------------------------------------- */
-  /*  (não mudou) Helpers GET users, GET messages…                         */
-  /* -------------------------------------------------------------------- */
-
-  /* -------------------------------------------------------------------- */
-  /*  Enfileirar mensagem (RabbitMQ topic)                                */
-  /* -------------------------------------------------------------------- */
+  /* -------------------------------------------------- Enfileirar */
   async sendMessageToQueue(userIdSendRaw, userIdReceiveRaw, message, token) {
-    // 1. converte e-mail (ou string) → id numérico
+    /* 1. e-mail (ou string) → id numérico */
     const userIdSend    = await getUserId(userIdSendRaw,    token);   // ex.: 2
     const userIdReceive = await getUserId(userIdReceiveRaw, token);   // ex.: 5
 
-    // 2. prepara payload
-    const payload = { userIdSend, userIdReceive, message };
+    /* 2. payload + routing-key */
+    const payload    = { userIdSend, userIdReceive, message };
+    const routingKey = `channel.${userIdSend}.${userIdReceive}`;
 
     try {
-      // 3. publica na exchange "chat" com routing-key channel.<idSend>.<idReceive>
+      /* 3. publish na exchange topic “chat” */
       const ch = await getChannel();
       await ch.assertExchange('chat', 'topic', { durable: true });
-      const routingKey = `channel.${userIdSend}.${userIdReceive}`;
       ch.publish('chat', routingKey, Buffer.from(JSON.stringify(payload)), {
         persistent: true
       });
 
-      console.log(`📤 Enviado para RabbitMQ → ${routingKey}`);
+      console.log(`📤 Rabbit publish → ${routingKey}`);
       return { success: true };
     } catch (err) {
-      console.error('RabbitMQ publish error:', err);
+      console.error('Rabbit publish error:', err);
       return { success: false, error: err.message };
     }
   }
 
-  /* -------------------------------------------------------------------- */
-  /*  LEGADO — se ainda quiser usar Redis + endpoint /message/worker       */
-  /* -------------------------------------------------------------------- */
+  /* -------------------------------------- (legado) Redis → RecordAPI */
   async processMessagesFromQueueToDB(userIdSend, userIdReceive) {
     const queueName = `queue:${userIdSend}_${userIdReceive}`;
     let processed = 0;
@@ -70,8 +68,8 @@ class MessageService {
         const raw = await this.redisClient.rPop(queueName);
         if (!raw) break;
         const msg = JSON.parse(raw);
-        const ok  = await axios.post(`${RECORD_API_BASE_URL}/message`, msg);
-        if (ok.status === 201) { processed++; }
+        const resp = await axios.post(`${RECORD_API_BASE_URL}/message`, msg);
+        if (resp.status === 201) processed++;
       }
       return { success: true, message: `Processed ${processed}` };
     } catch (e) {
